@@ -1,0 +1,17 @@
+{
+  "name": "winningproposal",
+  "private": true,
+  "version": "1.0.0",
+  "description": "WinningProposal – Azure Web App",
+  "scripts": {
+    "build": "cd frontend && npm ci && npm run build",
+    "start": "node server.js",
+    "install:frontend": "cd frontend && npm ci"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
