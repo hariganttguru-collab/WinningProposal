@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { useLobby } from './LobbyContext';
 
 interface Deliverable {
     name: string;
@@ -71,32 +72,41 @@ interface ProjectDataContextType {
     getTotalCost: () => number;
     getContributionMarginExcludingBonus: () => number;
     getProjectDuration: () => number;
+    getRawProjectDuration: () => number;
     getProjectCompletedEarlyBy: () => number;
     getContributionMarginIncludingBonus: () => number;
     isBidDisqualified: () => boolean;
+    showBonus: boolean;
+    setShowBonus: (show: boolean) => void;
+    isEditing: boolean;
+    setIsEditing: (editing: boolean) => void;
 
     // Constants
     seniorToJuniorProductivity: number;
     earlyFinishBonus: number;
     expectedProjectDuration: number;
+    expectedBidValue: number;
 }
 
 const ProjectDataContext = createContext<ProjectDataContextType | undefined>(undefined);
 
 export function ProjectDataProvider({ children }: { children: ReactNode }) {
+    const { currentLobby } = useLobby();
+
     // Deliverables
     const [deliverables, setDeliverables] = useState<Deliverable[]>([
-        { name: 'Complex Screen', quantity: 200, effortPerUnit: 40 },
-        { name: 'Simple Screen', quantity: 800, effortPerUnit: 10 },
-        { name: 'Complex Database', quantity: 180, effortPerUnit: 40 },
-        { name: 'Simple Database', quantity: 100, effortPerUnit: 20 }
+        { name: 'Complex Screen', quantity: 180, effortPerUnit: 40 },
+        { name: 'Simple Screen', quantity: 410, effortPerUnit: 16 },
+        { name: 'Complex Database', quantity: 95, effortPerUnit: 32 },
+        { name: 'Simple Database', quantity: 210, effortPerUnit: 12 }
     ]);
+
 
     const [estimationAccuracy, setEstimationAccuracy] = useState(80);
 
     // Resource Allocation
     const [screenAllocations, setScreenAllocations] = useState<ScreenAllocation[]>([
-        { deliverable: 'Complex Screen', uiSenior: 0, uiJunior: 15 },
+        { deliverable: 'Complex Screen', uiSenior: 0, uiJunior: 10 },
         { deliverable: 'Simple Screen', uiSenior: 0, uiJunior: 10 }
     ]);
 
@@ -105,55 +115,87 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
         { deliverable: 'Simple Database', backendSenior: 0, backendJunior: 10 }
     ]);
 
+
     // Work Schedule
-    const [workingDaysPerMonth, setWorkingDaysPerMonth] = useState(22);
-    const [workingHoursPerDay, setWorkingHoursPerDay] = useState(7);
+    const [workingDaysPerMonth, setWorkingDaysPerMonth] = useState(20);
+    const [workingHoursPerDay, setWorkingHoursPerDay] = useState(8);
+
 
     // Salaries
     const [salaries, setSalaries] = useState<Salaries>({
-        uiJunior: 1800,
-        uiSenior: 2300,
-        backendJunior: 2000,
-        backendSenior: 2500
+        uiJunior: 4000,
+        uiSenior: 7500,
+        backendJunior: 4800,
+        backendSenior: 9000
     });
 
+
     // Overhead & Contingency
-    const [contingencyPercent, setContingencyPercent] = useState(10);
-    const [overheadPercent, setOverheadPercent] = useState(10);
-    const [qualityPercent, setQualityPercent] = useState(5);
+    const [contingencyPercent, setContingencyPercent] = useState(40);
+
+    const [overheadPercent, setOverheadPercent] = useState(15);
+    const [qualityPercent, setQualityPercent] = useState(20);
+
+
 
     // Bid Price
-    const [bidPrice, setBidPrice] = useState(499999);
+    const [bidPrice, setBidPrice] = useState(1000000);
+
+    const [showBonus, setShowBonus] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
 
     // Constants
     const seniorToJuniorProductivity = 2;
     const earlyFinishBonus = 25000;
     const expectedProjectDuration = 5;
+    const expectedBidValue = 1000000;
 
-    // Update functions
+
+    // Sync from Supabase when data changes in DB (Initial/Admin setup)
+    useEffect(() => {
+        if (!currentLobby?.simulationData || Object.keys(currentLobby.simulationData).length === 0) return;
+
+        console.log('Syncing simulation data from lobby (initial setup):', currentLobby.simulationData);
+
+        const data = currentLobby.simulationData;
+        if (data.deliverables) setDeliverables(data.deliverables);
+        if (data.estimationAccuracy !== undefined) setEstimationAccuracy(data.estimationAccuracy);
+        if (data.screenAllocations) setScreenAllocations(data.screenAllocations);
+        if (data.databaseAllocations) setDatabaseAllocations(data.databaseAllocations);
+        if (data.workingDaysPerMonth !== undefined) setWorkingDaysPerMonth(data.workingDaysPerMonth);
+        if (data.workingHoursPerDay !== undefined) setWorkingHoursPerDay(data.workingHoursPerDay);
+        if (data.salaries) setSalaries(data.salaries);
+        if (data.contingencyPercent !== undefined) setContingencyPercent(data.contingencyPercent);
+        if (data.overheadPercent !== undefined) setOverheadPercent(data.overheadPercent);
+        if (data.qualityPercent !== undefined) setQualityPercent(data.qualityPercent);
+        if (data.bidPrice !== undefined) setBidPrice(data.bidPrice);
+    }, [currentLobby?.simulationData]);
+
+    // Wrap update functions (removed syncToSupabase to isolate player experience)
     const updateDeliverable = (index: number, field: 'quantity' | 'effortPerUnit', value: number) => {
         const updated = [...deliverables];
-        updated[index][field] = value;
+        updated[index] = { ...updated[index], [field]: value };
         setDeliverables(updated);
     };
 
     const updateScreenResource = (index: number, field: 'uiSenior' | 'uiJunior', value: number) => {
         const updated = [...screenAllocations];
-        updated[index][field] = value;
+        updated[index] = { ...updated[index], [field]: value };
         setScreenAllocations(updated);
     };
 
     const updateDatabaseResource = (index: number, field: 'backendSenior' | 'backendJunior', value: number) => {
         const updated = [...databaseAllocations];
-        updated[index][field] = value;
+        updated[index] = { ...updated[index], [field]: value };
         setDatabaseAllocations(updated);
     };
 
     const updateSalary = (role: keyof Salaries, value: number) => {
-        setSalaries(prev => ({ ...prev, [role]: value }));
+        const updated = { ...salaries, [role]: value };
+        setSalaries(updated);
     };
 
-    // Calculation Functions
+    // Calculation Functions (unchanged logic)
     const calculateAdjustedQuantity = (quantity: number) => {
         return quantity * (100 / estimationAccuracy);
     };
@@ -227,7 +269,6 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    // Row 19: Total Resource Cost
     const getTotalResourceCost = () => {
         return deliverables.reduce((sum, d) => {
             const cost = calculateCost(d.quantity, d.effortPerUnit);
@@ -241,7 +282,6 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
         }, 0);
     };
 
-    // Row 20: Total Cost = Total Resource Cost + Contingency + Overhead + Quality
     const getTotalCost = () => {
         const resourceCost = getTotalResourceCost();
         const contingencyCost = resourceCost * (contingencyPercent / 100);
@@ -250,12 +290,10 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
         return resourceCost + contingencyCost + overheadCost + qualityCost;
     };
 
-    // Row 21: Contribution Margin excluding Penalty & Bonus = Bid Price - Total Cost
     const getContributionMarginExcludingBonus = () => {
         return bidPrice - getTotalCost();
     };
 
-    // Row 23: Project Duration = Highest Months of Engagement
     const getProjectDuration = () => {
         let maxMonths = 0;
         deliverables.forEach(d => {
@@ -271,21 +309,33 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
         return maxMonths;
     };
 
-    // Row 25: Project Completed Early By = Expected Duration - Project Duration
+    const getRawProjectDuration = () => {
+        let maxMonths = 0;
+        deliverables.forEach(d => {
+            const cost = calculateCost(d.quantity, d.effortPerUnit);
+            const personHours = calculatePersonHours(d.name, cost);
+            const personDays = calculatePersonDays(personHours);
+            const personMonths = calculatePersonMonths(personDays);
+            if (personMonths > maxMonths) {
+                maxMonths = personMonths;
+            }
+        });
+        return maxMonths;
+    };
+
     const getProjectCompletedEarlyBy = () => {
         return expectedProjectDuration - getProjectDuration();
     };
 
-    // Row 26: Contribution Margin including Penalty & Bonus
     const getContributionMarginIncludingBonus = () => {
         const marginExcludingBonus = getContributionMarginExcludingBonus();
+        if (!showBonus) return marginExcludingBonus;
+
         const completedEarlyBy = getProjectCompletedEarlyBy();
         return marginExcludingBonus + (completedEarlyBy * earlyFinishBonus);
     };
 
-    // Check if bid is disqualified
     const isBidDisqualified = () => {
-        // Check if any person months exceed 5
         let hasTimelineViolation = false;
         deliverables.forEach(d => {
             const cost = calculateCost(d.quantity, d.effortPerUnit);
@@ -297,8 +347,7 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
             }
         });
 
-        // Check if bid price exceeds budget
-        const budgetViolation = bidPrice > 500000;
+        const budgetViolation = bidPrice > 1000000;
 
         return hasTimelineViolation || budgetViolation;
     };
@@ -334,12 +383,18 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
             getTotalCost,
             getContributionMarginExcludingBonus,
             getProjectDuration,
+            getRawProjectDuration,
             getProjectCompletedEarlyBy,
             getContributionMarginIncludingBonus,
             isBidDisqualified,
+            showBonus,
+            setShowBonus,
+            isEditing,
+            setIsEditing,
             seniorToJuniorProductivity,
             earlyFinishBonus,
-            expectedProjectDuration
+            expectedProjectDuration,
+            expectedBidValue
         }}>
             {children}
         </ProjectDataContext.Provider>

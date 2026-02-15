@@ -1,9 +1,27 @@
 import { useProjectData } from '../context/ProjectDataContext';
 
 export default function BidPriceSection() {
-    const { bidPrice, setBidPrice } = useProjectData();
+    const { bidPrice, setBidPrice, isEditing } = useProjectData();
 
-    const isOverBudget = bidPrice > 500000;
+    const isOverBudget = bidPrice > 1000000;
+
+
+    const inputBtnStyle = {
+        padding: '0',
+        width: '28px',
+        height: '28px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: isEditing ? (isOverBudget ? 'rgba(239, 68, 68, 0.9)' : 'rgba(34, 197, 94, 0.8)') : '#334155',
+        color: isEditing ? (isOverBudget ? '#450a0a' : '#064e3b') : '#94a3b8',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '16px',
+        fontWeight: 'bold',
+        transition: 'all 0.2s',
+    };
 
     return (
         <div id="section-8" style={{
@@ -19,46 +37,24 @@ export default function BidPriceSection() {
             <div style={{
                 backgroundColor: "#0f172a",
                 color: "#f1f5f9",
-                padding: "20px 30px",
+                padding: "10px 15px",
                 fontWeight: "600",
-                fontSize: "20px",
+                fontSize: "14px",
                 borderBottom: "1px solid #334155"
             }}>
                 Bid Price
             </div>
 
             <div style={{
-                padding: "40px",
+                padding: "15px",
                 color: "#e2e8f0"
             }}>
-                {/* Budget Warning */}
-                {isOverBudget && (
-                    <div style={{
-                        backgroundColor: "#ef4444",
-                        color: "white",
-                        padding: "16px 20px",
-                        borderRadius: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "12px",
-                        border: "2px solid #dc2626",
-                        marginBottom: "24px"
-                    }}>
-                        <span style={{ fontSize: "24px" }}>⚠️</span>
-                        <div>
-                            <div style={{ fontWeight: "700", fontSize: "16px", marginBottom: "4px" }}>
-                                Budget Alert!
-                            </div>
-                            <div style={{ fontSize: "14px" }}>
-                                Your bid price of ${bidPrice.toLocaleString()} exceeds the client's budget of $500,000. Consider reducing costs to stay competitive.
-                            </div>
-                        </div>
-                    </div>
-                )}
+
+
 
                 <div style={{
                     backgroundColor: "#0f172a",
-                    borderRadius: "12px",
+                    borderRadius: "8px",
                     overflow: "hidden",
                     boxShadow: "0 4px 6px rgba(0, 0, 0, 0.3)",
                     border: "1px solid #334155"
@@ -67,47 +63,65 @@ export default function BidPriceSection() {
                         <tbody>
                             <tr>
                                 <td style={{
-                                    padding: "16px 20px",
+                                    padding: "8px 12px",
                                     backgroundColor: "#1e293b",
                                     color: "#e2e8f0",
                                     fontWeight: "500",
+                                    fontSize: "12px",
                                     width: "50%"
                                 }}>
                                     Bid Price
                                 </td>
                                 <td style={{
-                                    padding: "16px 20px",
+                                    padding: "8px 12px",
                                     borderLeft: "1px solid #334155",
                                     textAlign: "center",
-                                    backgroundColor: isOverBudget ? "#ef4444" : "#4ade80",
+                                    backgroundColor: isEditing ? (isOverBudget ? "#ef4444" : "#4ade80") : "#0f172a",
                                     width: "50%"
                                 }}>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={bidPrice}
-                                        onChange={(e) => setBidPrice(parseInt(e.target.value) || 0)}
-                                        style={{
-                                            width: "200px",
-                                            padding: "12px 16px",
-                                            border: isOverBudget ? "3px solid #dc2626" : "2px solid #22c55e",
-                                            borderRadius: "6px",
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                        {isEditing && (
+                                            <button
+                                                onClick={() => setBidPrice(Math.max(0, bidPrice - 10000))}
+                                                style={inputBtnStyle}
+                                                onMouseOver={(e) => {
+                                                    if (isEditing && !isOverBudget) e.currentTarget.style.backgroundColor = 'rgba(21, 128, 61, 0.8)';
+                                                }}
+                                                onMouseOut={(e) => {
+                                                    if (isEditing && !isOverBudget) e.currentTarget.style.backgroundColor = 'rgba(34, 197, 94, 0.8)';
+                                                }}
+                                            >-</button>
+                                        )}
+                                        <div style={{
+                                            width: "120px",
+                                            padding: "6px 10px",
+                                            border: isEditing ? (isOverBudget ? "2px solid #dc2626" : "1px solid #22c55e") : "1px solid #475569",
+                                            borderRadius: "4px",
                                             textAlign: "center",
-                                            fontSize: "18px",
+                                            fontSize: "14px",
                                             fontWeight: "700",
-                                            backgroundColor: isOverBudget ? "#fee2e2" : "#dcfce7",
-                                            color: "#0f172a",
-                                            outline: "none",
-                                            transition: "all 0.2s ease"
-                                        }}
-                                        onFocus={(e) => {
-                                            e.target.style.borderColor = "#3b82f6";
-                                        }}
-                                        onBlur={(e) => {
-                                            const value = parseInt(e.target.value) || 0;
-                                            e.target.style.borderColor = value > 500000 ? "#dc2626" : "#22c55e";
-                                        }}
-                                    />
+                                            backgroundColor: isEditing ? (isOverBudget ? "#fee2e2" : "#dcfce7") : "#0f172a",
+                                            color: isEditing ? "#0f172a" : "#f1f5f9",
+                                            transition: "all 0.2s ease",
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            {bidPrice >= 1000 ? `${(bidPrice / 1000).toFixed(0)}k` : bidPrice}
+                                        </div>
+                                        {isEditing && (
+                                            <button
+                                                onClick={() => setBidPrice(bidPrice + 10000)}
+                                                style={inputBtnStyle}
+                                                onMouseOver={(e) => {
+                                                    if (isEditing && !isOverBudget) e.currentTarget.style.backgroundColor = 'rgba(21, 128, 61, 0.8)';
+                                                }}
+                                                onMouseOut={(e) => {
+                                                    if (isEditing && !isOverBudget) e.currentTarget.style.backgroundColor = 'rgba(34, 197, 94, 0.8)';
+                                                }}
+                                            >+</button>
+                                        )}
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>

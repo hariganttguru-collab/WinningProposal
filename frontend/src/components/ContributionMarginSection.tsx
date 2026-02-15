@@ -1,7 +1,7 @@
 import { useProjectData } from '../context/ProjectDataContext';
 
 export default function ContributionMarginSection() {
-    const { getContributionMarginIncludingBonus } = useProjectData();
+    const { getContributionMarginIncludingBonus, isEditing } = useProjectData();
 
     const contributionMargin = getContributionMarginIncludingBonus();
 
@@ -54,8 +54,8 @@ export default function ContributionMarginSection() {
                                     padding: "16px 20px",
                                     borderLeft: "1px solid #334155",
                                     textAlign: "center",
-                                    backgroundColor: "#3b82f6",
-                                    color: "white",
+                                    backgroundColor: isEditing ? "#3b82f6" : "#0f172a",
+                                    color: isEditing ? "white" : "#94a3b8",
                                     fontWeight: "700",
                                     fontSize: "24px",
                                     width: "50%"

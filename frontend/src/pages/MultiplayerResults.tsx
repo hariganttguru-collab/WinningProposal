@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLobby } from '../context/LobbyContext';
-import { generateBots } from '../utils/botGenerator';
+import { formatFullK } from '../utils/formatters';
 
 interface PlayerBid {
     userId?: string;
@@ -38,73 +38,37 @@ export default function MultiplayerResults() {
         const playerBids: PlayerBid[] = [];
 
         players.forEach(player => {
-            const bidData = localStorage.getItem(`lobby_${currentLobby.code}_bid_${player.id}`);
-            if (bidData) {
-                const bid = JSON.parse(bidData);
-                playerBids.push(bid);
+            if (player.bidData) {
+                playerBids.push(player.bidData);
                 if (player.id === user.id) {
-                    setUserBid(bid);
+                    setUserBid(player.bidData);
                 }
             }
         });
 
-        // Generate bots to ensure minimum 5 total bids
-        const totalBids = playerBids.length;
-        const botsNeeded = Math.max(0, 5 - totalBids);
-
-        let bots: any[] = [];
-        if (botsNeeded > 0) {
-            // Check if bots already exist in localStorage
-            const existingBotsData = localStorage.getItem(`lobby_${currentLobby.code}_bots`);
-
-            if (existingBotsData) {
-                // Load existing bots
-                bots = JSON.parse(existingBotsData).map((bot: any) => ({
-                    username: bot.username,
-                    bidPrice: bot.bidPrice,
-                    contributionMargin: bot.contributionMargin,
-                    isDisqualified: bot.isDisqualified,
-                    disqualificationReasons: bot.disqualificationReasons,
-                    totalResourceCost: bot.totalResourceCost,
-                    totalCost: bot.totalCost,
-                    projectDuration: bot.projectDuration,
-                    inputs: bot.inputs,
-                    isBot: true
-                }));
-            } else {
-                // Generate new bots (shouldn't happen if admin generated them first)
-                const generatedBots = generateBots(botsNeeded);
-                bots = generatedBots.map(bot => ({
-                    username: bot.name,
-                    bidPrice: bot.bidPrice,
-                    contributionMargin: bot.contributionMargin,
-                    isDisqualified: bot.isDisqualified,
-                    disqualificationReasons: bot.disqualificationReasons,
-                    totalResourceCost: bot.totalResourceCost,
-                    totalCost: bot.totalCost,
-                    projectDuration: bot.projectDuration,
-                    inputs: {
-                        deliverables: bot.deliverables,
-                        estimationAccuracy: bot.estimationAccuracy,
-                        resourceAllocation: bot.resourceAllocation,
-                        workSchedule: bot.workSchedule,
-                        salaries: bot.salaries,
-                        overhead: bot.overhead
-                    },
-                    isBot: true
-                }));
-            }
-        }
+        // Get bots from Supabase
+        const bots = (currentLobby.simulationData?.bots || []).map((bot: any) => ({
+            ...bot,
+            isBot: true
+        }));
 
         // Combine player bids and bots
         const combinedBids = [...playerBids, ...bots];
 
         // Separate qualified and disqualified
-        const qualified = combinedBids.filter(bid => !bid.isDisqualified);
-        const disqualified = combinedBids.filter(bid => bid.isDisqualified);
+        const qualified = combinedBids.filter(bid => !bid.isDisqualified && bid.contributionMargin > 0);
+        const disqualified = combinedBids.filter(bid => bid.isDisqualified || bid.contributionMargin <= 0);
 
-        // Sort qualified by contribution margin
-        qualified.sort((a, b) => b.contributionMargin - a.contributionMargin);
+        // Add CM reason to disqualified bids
+        disqualified.forEach(bid => {
+            if (bid.contributionMargin <= 0 && !bid.disqualificationReasons.includes('Contribution Margin must be positive')) {
+                bid.isDisqualified = true;
+                bid.disqualificationReasons.push('Contribution Margin must be positive');
+            }
+        });
+
+        // Sort qualified by bid price (lower is better)
+        qualified.sort((a, b) => a.bidPrice - b.bidPrice);
 
         // Assign ranks
         qualified.forEach((bid, index) => {
@@ -200,7 +164,7 @@ export default function MultiplayerResults() {
                         <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: '14px', color: userEntry?.isDisqualified ? '#fecaca' : '#94a3b8', marginBottom: '5px' }}>Bid Price</div>
                             <div style={{ fontSize: '32px', fontWeight: '700', color: userEntry?.isDisqualified ? '#fecaca' : '#10b981' }}>
-                                ${userBid.bidPrice.toLocaleString()}
+                                ${formatFullK(userBid.bidPrice)}
                             </div>
                         </div>
                     </div>
@@ -209,7 +173,7 @@ export default function MultiplayerResults() {
                         <div>
                             <div style={{ fontSize: '14px', color: userEntry?.isDisqualified ? '#fecaca' : '#94a3b8', marginBottom: '5px' }}>Contribution Margin</div>
                             <div style={{ fontSize: '24px', fontWeight: '700', color: userEntry?.isDisqualified ? '#fecaca' : '#f1f5f9' }}>
-                                ${Math.round(userBid.contributionMargin).toLocaleString()}
+                                ${formatFullK(Math.round(userBid.contributionMargin))}
                             </div>
                         </div>
                         <div>
@@ -279,11 +243,12 @@ export default function MultiplayerResults() {
                                             <td style={{ padding: '16px 20px', borderBottom: '1px solid #334155', fontWeight: isUser ? '700' : '500', color: isUser ? '#60a5fa' : '#e2e8f0' }}>
                                                 {entry.username} {entry.isBot && '🤖'}
                                             </td>
-                                            <td style={{ padding: '16px 20px', textAlign: 'right', borderBottom: '1px solid #334155', color: entry.bidPrice > 500000 ? '#ef4444' : '#10b981', fontWeight: '600' }}>
-                                                ${entry.bidPrice.toLocaleString()}
+                                            <td style={{ padding: '16px 20px', textAlign: 'right', borderBottom: '1px solid #334155', color: entry.bidPrice > 1000000 ? '#ef4444' : '#10b981', fontWeight: '600' }}>
+
+                                                ${formatFullK(entry.bidPrice)}
                                             </td>
                                             <td style={{ padding: '16px 20px', textAlign: 'right', borderBottom: '1px solid #334155', color: entry.contributionMargin > 0 ? '#10b981' : '#ef4444', fontWeight: '600' }}>
-                                                ${Math.round(entry.contributionMargin).toLocaleString()}
+                                                ${formatFullK(Math.round(entry.contributionMargin))}
                                             </td>
                                             <td style={{ padding: '16px 20px', textAlign: 'center', borderBottom: '1px solid #334155', color: '#e2e8f0' }}>
                                                 {entry.projectDuration} mo
@@ -316,10 +281,12 @@ export default function MultiplayerResults() {
                 <div style={{ marginTop: '40px', padding: '20px 30px', backgroundColor: '#1e293b', borderRadius: '12px', border: '1px solid #334155' }}>
                     <h3 style={{ margin: '0 0 15px 0', color: '#f1f5f9', fontSize: '18px' }}>📋 Qualification Rules</h3>
                     <ul style={{ margin: '0', paddingLeft: '20px', color: '#94a3b8', lineHeight: '1.8' }}>
-                        <li>Bid price must not exceed $500,000 (client budget)</li>
+                        <li>Bid price must not exceed $1,000,000 (client budget)</li>
+
                         <li>All deliverables must be completed within 5 months</li>
-                        <li>Qualified bids are ranked by highest contribution margin</li>
-                        <li>Disqualified bids are shown at the bottom regardless of their margin</li>
+                        <li>Qualified bids must have a positive contribution margin</li>
+                        <li>Qualified bids are ranked by lowest bid price</li>
+                        <li>Disqualified bids are shown at the bottom regardless of their price or margin</li>
                         <li>🤖 Bot competitors are added to ensure competitive bidding (minimum 5 total bids)</li>
                     </ul>
                 </div>

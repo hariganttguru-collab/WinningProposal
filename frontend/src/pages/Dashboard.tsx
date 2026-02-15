@@ -18,8 +18,9 @@ export default function Dashboard() {
 
             // Admin creates lobby, User joins lobby
             if (isAdmin && user) {
-                const code = createLobby(user.id, user.username);
-                navigate('/lobby');
+                createLobby(user.id, user.username).then((code) => {
+                    if (code) navigate('/lobby');
+                });
             } else {
                 navigate('/join-lobby');
             }
@@ -251,7 +252,8 @@ export default function Dashboard() {
                                     fontWeight: "700",
                                     color: "#f1f5f9"
                                 }}>
-                                    $500,000
+                                    $1,000k
+
                                 </div>
                             </div>
 

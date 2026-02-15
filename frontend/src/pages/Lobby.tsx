@@ -42,9 +42,12 @@ export default function Lobby() {
 
     const handleLeaveLobby = () => {
         if (user) {
-            leaveLobby(user.id);
+            leaveLobby(user.id).then(() => {
+                navigate('/dashboard');
+            });
+        } else {
+            navigate('/dashboard');
         }
-        navigate('/dashboard');
     };
 
     const handleStartGame = () => {
@@ -54,6 +57,7 @@ export default function Lobby() {
         }
         if (currentLobby) {
             // Save timer end time to localStorage (add 5 seconds buffer for countdown and loading)
+            // Note: In true multiplayer, this should be synced in simulation_data, but for now we'll keep it as is
             const endTime = Date.now() + (timerMinutes * 60 * 1000) + 5000;
             localStorage.setItem(`lobby_${currentLobby.code}_timer`, endTime.toString());
         }

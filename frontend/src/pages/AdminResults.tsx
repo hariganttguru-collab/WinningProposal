@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLobby } from '../context/LobbyContext';
 import { generateBots } from '../utils/botGenerator';
+import { supabase } from '../lib/supabase';
+import { formatFullK } from '../utils/formatters';
 
 interface PlayerBid {
     userId: string;
@@ -74,9 +76,8 @@ export default function AdminResults() {
             const bids: PlayerBid[] = [];
 
             players.forEach(player => {
-                const bidData = localStorage.getItem(`lobby_${currentLobby.code}_bid_${player.id}`);
-                if (bidData) {
-                    bids.push(JSON.parse(bidData));
+                if (player.bidData) {
+                    bids.push(player.bidData);
                 }
             });
 
@@ -85,13 +86,13 @@ export default function AdminResults() {
             const botsNeeded = Math.max(0, 5 - totalBids);
 
             // Check if all players have submitted
-            const allPlayersSubmitted = bids.length === players.length && players.length > 0;
+            const allPlayersSubmitted = players.every(p => !!p.bidData) && players.length > 0;
 
             if (botsNeeded > 0 && allPlayersSubmitted) {
-                // Check if bots already exist in localStorage
-                const existingBotsData = localStorage.getItem(`lobby_${currentLobby.code}_bots`);
+                // Check if bots already exist in Supabase
+                const existingBots = currentLobby.simulationData?.bots;
 
-                if (!existingBotsData) {
+                if (!existingBots) {
                     // Generate bots only if they don't exist
                     const generatedBots = generateBots(botsNeeded);
                     const botBids = generatedBots.map(bot => ({
@@ -115,20 +116,40 @@ export default function AdminResults() {
                         }
                     }));
 
-                    // Save bots to localStorage
-                    localStorage.setItem(`lobby_${currentLobby.code}_bots`, JSON.stringify(botBids));
+                    // Save bots to Supabase simulation_data
+                    const updatedSimulationData = {
+                        ...(currentLobby.simulationData || {}),
+                        bots: botBids
+                    };
+
+                    supabase
+                        .from('lobbies')
+                        .update({ simulation_data: updatedSimulationData })
+                        .eq('id', currentLobby.id)
+                        .then(({ error }) => {
+                            if (error) console.error('Error saving bots to Supabase:', error);
+                        });
+
                     bids.push(...botBids);
                 } else {
                     // Load existing bots
-                    const botBids = JSON.parse(existingBotsData);
-                    bids.push(...botBids);
+                    bids.push(...existingBots);
                 }
             }
 
-            const qualified = bids.filter(bid => !bid.isDisqualified);
-            const disqualified = bids.filter(bid => bid.isDisqualified);
+            const qualified = bids.filter(bid => !bid.isDisqualified && bid.contributionMargin > 0);
+            const disqualified = bids.filter(bid => bid.isDisqualified || bid.contributionMargin <= 0);
 
-            qualified.sort((a, b) => b.contributionMargin - a.contributionMargin);
+            // Add CM reason to disqualified bids
+            disqualified.forEach(bid => {
+                if (bid.contributionMargin <= 0 && !bid.disqualificationReasons.includes('Contribution Margin must be positive')) {
+                    bid.isDisqualified = true;
+                    bid.disqualificationReasons.push('Contribution Margin must be positive');
+                }
+            });
+
+            // Sort qualified by bid price (lower is better)
+            qualified.sort((a, b) => a.bidPrice - b.bidPrice);
 
             qualified.forEach((bid, index) => {
                 bid.rank = index + 1;
@@ -140,13 +161,10 @@ export default function AdminResults() {
 
             const sortedBids = [...qualified, ...disqualified];
             setPlayerBids(sortedBids);
-            setAllSubmitted(bids.filter(b => !b.userId?.startsWith('bot_')).length === players.length && players.length > 0);
+            setAllSubmitted(allPlayersSubmitted);
         };
 
         checkSubmissions();
-        const interval = setInterval(checkSubmissions, 1000);
-
-        return () => clearInterval(interval);
     }, [currentLobby]);
 
     const handleCompare = (player1: PlayerBid, player2: PlayerBid) => {
@@ -235,8 +253,29 @@ export default function AdminResults() {
 
                 {allSubmitted && (
                     <div style={{ backgroundColor: '#1e293b', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)', border: '1px solid #334155', marginBottom: '30px' }}>
-                        <div style={{ backgroundColor: '#10b981', color: 'white', padding: '20px 30px', fontWeight: '600', fontSize: '20px' }}>
-                            🏆 Final Results - All Players Submitted
+                        <div style={{ backgroundColor: '#10b981', color: 'white', padding: '20px 30px', fontWeight: '600', fontSize: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>🏆 Final Results - All Players Submitted</span>
+                            <button
+                                onClick={async () => {
+                                    const { error } = await supabase
+                                        .from('lobbies')
+                                        .update({ status: 'completed' })
+                                        .eq('id', currentLobby.id);
+                                    if (error) console.error('Error completing lobby:', error);
+                                }}
+                                style={{
+                                    padding: '8px 20px',
+                                    backgroundColor: 'white',
+                                    color: '#10b981',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    fontSize: '14px'
+                                }}
+                            >
+                                Reveal Results to Players
+                            </button>
                         </div>
                         <div style={{ padding: '30px' }}>
                             <div style={{ backgroundColor: '#0f172a', borderRadius: '12px', overflow: 'hidden', border: '1px solid #334155' }}>
@@ -262,10 +301,10 @@ export default function AdminResults() {
                                                     {bid.username}
                                                 </td>
                                                 <td style={{ padding: '12px 20px', borderBottom: '1px solid #334155', borderLeft: '1px solid #334155', textAlign: 'right', color: bid.isDisqualified ? '#fecaca' : bid.rank === 1 ? 'white' : '#10b981', fontWeight: '600' }}>
-                                                    ${bid.bidPrice.toLocaleString()}
+                                                    {formatFullK(bid.bidPrice)}
                                                 </td>
                                                 <td style={{ padding: '12px 20px', borderBottom: '1px solid #334155', borderLeft: '1px solid #334155', textAlign: 'right', color: bid.isDisqualified ? '#fecaca' : bid.rank === 1 ? 'white' : '#e2e8f0', fontWeight: '600' }}>
-                                                    ${Math.round(bid.contributionMargin).toLocaleString()}
+                                                    {formatFullK(Math.round(bid.contributionMargin))}
                                                 </td>
                                                 <td style={{ padding: '12px 20px', borderBottom: '1px solid #334155', borderLeft: '1px solid #334155', textAlign: 'center', color: bid.isDisqualified ? '#fecaca' : bid.rank === 1 ? 'white' : '#e2e8f0', fontWeight: '500' }}>
                                                     {bid.projectDuration} mo
@@ -389,13 +428,13 @@ export default function AdminResults() {
                                 <div style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
                                     <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px' }}>Bid Price</div>
                                     <div style={{ fontSize: '28px', fontWeight: '700', color: '#10b981' }}>
-                                        ${selectedBid.bidPrice.toLocaleString()}
+                                        {formatFullK(selectedBid.bidPrice)}
                                     </div>
                                 </div>
                                 <div style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
                                     <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px' }}>Contribution Margin</div>
                                     <div style={{ fontSize: '28px', fontWeight: '700', color: selectedBid.contributionMargin > 0 ? '#10b981' : '#ef4444' }}>
-                                        ${Math.round(selectedBid.contributionMargin).toLocaleString()}
+                                        {formatFullK(Math.round(selectedBid.contributionMargin))}
                                     </div>
                                 </div>
                                 <div style={{ backgroundColor: '#0f172a', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
@@ -437,7 +476,7 @@ export default function AdminResults() {
                                             <tr>
                                                 <td style={{ padding: '12px 20px', color: '#e2e8f0', borderBottom: '1px solid #334155' }}>Total Resource Cost</td>
                                                 <td style={{ padding: '12px 20px', textAlign: 'right', color: '#f1f5f9', fontWeight: '600', borderBottom: '1px solid #334155' }}>
-                                                    ${Math.round(selectedBid.totalResourceCost).toLocaleString()}
+                                                    ${formatFullK(Math.round(selectedBid.totalResourceCost))}
                                                 </td>
                                             </tr>
                                             <tr>
@@ -445,7 +484,7 @@ export default function AdminResults() {
                                                     Contingency ({selectedBid.inputs.overhead.contingencyPercent}%)
                                                 </td>
                                                 <td style={{ padding: '12px 20px', textAlign: 'right', color: '#f1f5f9', fontWeight: '600', borderBottom: '1px solid #334155' }}>
-                                                    ${Math.round(selectedBid.totalResourceCost * (selectedBid.inputs.overhead.contingencyPercent / 100)).toLocaleString()}
+                                                    ${formatFullK(Math.round(selectedBid.totalResourceCost * (selectedBid.inputs.overhead.contingencyPercent / 100)))}
                                                 </td>
                                             </tr>
                                             <tr>
@@ -453,7 +492,7 @@ export default function AdminResults() {
                                                     Overhead ({selectedBid.inputs.overhead.overheadPercent}%)
                                                 </td>
                                                 <td style={{ padding: '12px 20px', textAlign: 'right', color: '#f1f5f9', fontWeight: '600', borderBottom: '1px solid #334155' }}>
-                                                    ${Math.round(selectedBid.totalResourceCost * (selectedBid.inputs.overhead.overheadPercent / 100)).toLocaleString()}
+                                                    ${formatFullK(Math.round(selectedBid.totalResourceCost * (selectedBid.inputs.overhead.overheadPercent / 100)))}
                                                 </td>
                                             </tr>
                                             <tr>
@@ -461,7 +500,7 @@ export default function AdminResults() {
                                                     Quality/Rework ({selectedBid.inputs.overhead.qualityPercent}%)
                                                 </td>
                                                 <td style={{ padding: '12px 20px', textAlign: 'right', color: '#f1f5f9', fontWeight: '600', borderBottom: '1px solid #334155' }}>
-                                                    ${Math.round(selectedBid.totalResourceCost * (selectedBid.inputs.overhead.qualityPercent / 100)).toLocaleString()}
+                                                    ${formatFullK(Math.round(selectedBid.totalResourceCost * (selectedBid.inputs.overhead.qualityPercent / 100)))}
                                                 </td>
                                             </tr>
                                             <tr style={{ backgroundColor: '#1e293b' }}>
@@ -607,13 +646,13 @@ export default function AdminResults() {
                                         <div>
                                             <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Bid Price</div>
                                             <div style={{ fontSize: '24px', fontWeight: '700', color: '#10b981' }}>
-                                                ${comparisonBid1.bidPrice.toLocaleString()}
+                                                {formatFullK(comparisonBid1.bidPrice)}
                                             </div>
                                         </div>
                                         <div>
                                             <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Contribution Margin</div>
                                             <div style={{ fontSize: '24px', fontWeight: '700', color: '#f1f5f9' }}>
-                                                ${Math.round(comparisonBid1.contributionMargin).toLocaleString()}
+                                                {formatFullK(Math.round(comparisonBid1.contributionMargin))}
                                             </div>
                                         </div>
                                         <div>
@@ -639,13 +678,13 @@ export default function AdminResults() {
                                         <div>
                                             <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Bid Price</div>
                                             <div style={{ fontSize: '24px', fontWeight: '700', color: '#10b981' }}>
-                                                ${comparisonBid2.bidPrice.toLocaleString()}
+                                                {formatFullK(comparisonBid2.bidPrice)}
                                             </div>
                                         </div>
                                         <div>
                                             <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Contribution Margin</div>
                                             <div style={{ fontSize: '24px', fontWeight: '700', color: '#f1f5f9' }}>
-                                                ${Math.round(comparisonBid2.contributionMargin).toLocaleString()}
+                                                {formatFullK(Math.round(comparisonBid2.contributionMargin))}
                                             </div>
                                         </div>
                                         <div>

@@ -25,14 +25,14 @@ export default function JoinLobby() {
         setLoading(true);
         setError('');
 
-        const success = joinLobby(code.toUpperCase(), user.id, user.username);
-
-        if (success) {
-            navigate('/lobby');
-        } else {
-            setError('Invalid lobby code or game already started');
-            setLoading(false);
-        }
+        joinLobby(code.toUpperCase(), user.id, user.username).then((success) => {
+            if (success) {
+                navigate('/lobby');
+            } else {
+                setError('Invalid lobby code or game already started');
+                setLoading(false);
+            }
+        });
     };
 
     return (

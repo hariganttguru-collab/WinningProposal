@@ -5,24 +5,11 @@ export default function DeliverablesSection() {
         deliverables,
         updateDeliverable,
         estimationAccuracy,
-        setEstimationAccuracy
+        setEstimationAccuracy,
+        isEditing
     } = useProjectData();
 
-    // Backend calculations (not displayed)
-    const calculateAdjustedQuantity = (quantity: number) => {
-        return quantity * (100 / estimationAccuracy);
-    };
 
-    const calculateCost = (quantity: number, effortPerUnit: number) => {
-        const adjustedQuantity = calculateAdjustedQuantity(quantity);
-        return adjustedQuantity * effortPerUnit;
-    };
-
-    // Frontend display - Total deliverables
-    const totalDeliverables = deliverables.reduce((sum, d) => sum + d.quantity, 0);
-
-    // Total cost calculation for display
-    const totalCost = deliverables.reduce((sum, d) => sum + calculateCost(d.quantity, d.effortPerUnit), 0);
 
     return (
         <div id="section-1" style={{
@@ -36,16 +23,16 @@ export default function DeliverablesSection() {
             <div style={{
                 backgroundColor: "#0f172a",
                 color: "#f1f5f9",
-                padding: "20px 30px",
+                padding: "10px 15px",
                 fontWeight: "600",
-                fontSize: "20px",
+                fontSize: "14px",
                 borderBottom: "1px solid #334155"
             }}>
                 Deliverables & Effort Estimation
             </div>
 
             <div style={{
-                padding: "40px",
+                padding: "15px",
                 color: "#e2e8f0"
             }}>
                 {/* Deliverables Table */}
@@ -55,43 +42,46 @@ export default function DeliverablesSection() {
                     overflow: "hidden",
                     boxShadow: "0 4px 6px rgba(0, 0, 0, 0.3)",
                     border: "1px solid #334155",
-                    marginBottom: "24px"
+                    marginBottom: "15px"
                 }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
                             <tr>
                                 <th style={{
-                                    backgroundColor: "#60a5fa",
-                                    padding: "16px 20px",
+                                    backgroundColor: isEditing ? "#60a5fa" : "#334155",
+                                    padding: "8px 12px",
                                     borderBottom: "2px solid #334155",
                                     fontWeight: "600",
-                                    fontSize: "14px",
-                                    color: "#0f172a",
-                                    textAlign: "left"
+                                    fontSize: "12px",
+                                    color: isEditing ? "#0f172a" : "#94a3b8",
+                                    textAlign: "left",
+                                    width: "30%"
                                 }}>
                                     Deliverables
                                 </th>
                                 <th style={{
-                                    backgroundColor: "#4ade80",
-                                    padding: "16px 20px",
+                                    backgroundColor: isEditing ? "#4ade80" : "#334155",
+                                    padding: "8px 12px",
                                     borderBottom: "2px solid #334155",
                                     borderLeft: "1px solid #334155",
                                     fontWeight: "600",
-                                    fontSize: "14px",
-                                    color: "#0f172a",
-                                    textAlign: "center"
+                                    fontSize: "12px",
+                                    color: isEditing ? "#0f172a" : "#94a3b8",
+                                    textAlign: "center",
+                                    width: "35%"
                                 }}>
                                     No. of Deliverables
                                 </th>
                                 <th style={{
-                                    backgroundColor: "#fbbf24",
-                                    padding: "16px 20px",
+                                    backgroundColor: isEditing ? "#fbbf24" : "#334155",
+                                    padding: "8px 12px",
                                     borderBottom: "2px solid #334155",
                                     borderLeft: "1px solid #334155",
                                     fontWeight: "600",
-                                    fontSize: "14px",
-                                    color: "#0f172a",
-                                    textAlign: "center"
+                                    fontSize: "12px",
+                                    color: isEditing ? "#0f172a" : "#94a3b8",
+                                    textAlign: "center",
+                                    width: "35%"
                                 }}>
                                     Estimated Effort per Unit
                                 </th>
@@ -102,40 +92,43 @@ export default function DeliverablesSection() {
                                 return (
                                     <tr key={index}>
                                         <td style={{
-                                            padding: "12px 20px",
+                                            padding: "6px 12px",
                                             borderBottom: "1px solid #334155",
                                             backgroundColor: "#1e293b",
                                             color: "#e2e8f0",
-                                            fontWeight: "500"
+                                            fontWeight: "500",
+                                            fontSize: "12px"
                                         }}>
                                             {deliverable.name}
                                         </td>
                                         <td style={{
-                                            padding: "12px 20px",
+                                            padding: "6px 12px",
                                             borderBottom: "1px solid #334155",
                                             borderLeft: "1px solid #334155",
                                             textAlign: "center",
                                             backgroundColor: "#0f172a"
                                         }}>
-                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                                                <button
-                                                    onClick={() => updateDeliverable(index, 'quantity', Math.max(0, deliverable.quantity - 25))}
-                                                    style={{
-                                                        padding: "8px 12px",
-                                                        backgroundColor: "#475569",
-                                                        color: "white",
-                                                        border: "none",
-                                                        borderRadius: "6px",
-                                                        cursor: "pointer",
-                                                        fontSize: "16px",
-                                                        fontWeight: "700",
-                                                        transition: "background-color 0.2s ease"
-                                                    }}
-                                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#64748b"}
-                                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#475569"}
-                                                >
-                                                    −
-                                                </button>
+                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+                                                {isEditing && (
+                                                    <button
+                                                        onClick={() => updateDeliverable(index, 'quantity', Math.max(0, deliverable.quantity - 25))}
+                                                        style={{
+                                                            padding: "8px 12px",
+                                                            backgroundColor: isEditing ? "#475569" : "#334155",
+                                                            color: isEditing ? "white" : "#94a3b8",
+                                                            border: "none",
+                                                            borderRadius: "6px",
+                                                            cursor: isEditing ? "pointer" : "default",
+                                                            fontSize: "16px",
+                                                            fontWeight: "700",
+                                                            transition: "background-color 0.2s ease"
+                                                        }}
+                                                        onMouseOver={(e) => { if (isEditing) e.currentTarget.style.backgroundColor = "#64748b" }}
+                                                        onMouseOut={(e) => { if (isEditing) e.currentTarget.style.backgroundColor = isEditing ? "#475569" : "#334155" }}
+                                                    >
+                                                        −
+                                                    </button>
+                                                )}
                                                 <input
                                                     type="number"
                                                     min="0"
@@ -143,39 +136,41 @@ export default function DeliverablesSection() {
                                                     value={deliverable.quantity}
                                                     onChange={(e) => updateDeliverable(index, 'quantity', parseInt(e.target.value) || 0)}
                                                     style={{
-                                                        width: "100px",
+                                                        width: "70px",
                                                         padding: "8px 12px",
                                                         border: "2px solid #475569",
                                                         borderRadius: "6px",
                                                         textAlign: "center",
                                                         fontSize: "14px",
                                                         fontWeight: "500",
-                                                        backgroundColor: "#0f172a",
-                                                        color: "#f1f5f9",
+                                                        backgroundColor: isEditing ? "#0f172a" : "#1e293b",
+                                                        color: isEditing ? "#f1f5f9" : "#94a3b8",
                                                         outline: "none",
                                                         transition: "border-color 0.2s ease"
                                                     }}
-                                                    onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
+                                                    onFocus={(e) => { if (isEditing) e.target.style.borderColor = "#3b82f6" }}
                                                     onBlur={(e) => e.target.style.borderColor = "#475569"}
                                                 />
-                                                <button
-                                                    onClick={() => updateDeliverable(index, 'quantity', deliverable.quantity + 25)}
-                                                    style={{
-                                                        padding: "8px 12px",
-                                                        backgroundColor: "#475569",
-                                                        color: "white",
-                                                        border: "none",
-                                                        borderRadius: "6px",
-                                                        cursor: "pointer",
-                                                        fontSize: "16px",
-                                                        fontWeight: "700",
-                                                        transition: "background-color 0.2s ease"
-                                                    }}
-                                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#64748b"}
-                                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#475569"}
-                                                >
-                                                    +
-                                                </button>
+                                                {isEditing && (
+                                                    <button
+                                                        onClick={() => updateDeliverable(index, 'quantity', deliverable.quantity + 25)}
+                                                        style={{
+                                                            padding: "8px 12px",
+                                                            backgroundColor: "#475569",
+                                                            color: "white",
+                                                            border: "none",
+                                                            borderRadius: "6px",
+                                                            cursor: "pointer",
+                                                            fontSize: "16px",
+                                                            fontWeight: "700",
+                                                            transition: "background-color 0.2s ease"
+                                                        }}
+                                                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#64748b"}
+                                                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#475569"}
+                                                    >
+                                                        +
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                         <td style={{
@@ -185,25 +180,27 @@ export default function DeliverablesSection() {
                                             textAlign: "center",
                                             backgroundColor: "#0f172a"
                                         }}>
-                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                                                <button
-                                                    onClick={() => updateDeliverable(index, 'effortPerUnit', Math.max(0, deliverable.effortPerUnit - 5))}
-                                                    style={{
-                                                        padding: "8px 12px",
-                                                        backgroundColor: "#475569",
-                                                        color: "white",
-                                                        border: "none",
-                                                        borderRadius: "6px",
-                                                        cursor: "pointer",
-                                                        fontSize: "16px",
-                                                        fontWeight: "700",
-                                                        transition: "background-color 0.2s ease"
-                                                    }}
-                                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#64748b"}
-                                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#475569"}
-                                                >
-                                                    −
-                                                </button>
+                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+                                                {isEditing && (
+                                                    <button
+                                                        onClick={() => updateDeliverable(index, 'effortPerUnit', Math.max(0, deliverable.effortPerUnit - 5))}
+                                                        style={{
+                                                            padding: "8px 12px",
+                                                            backgroundColor: "#475569",
+                                                            color: "white",
+                                                            border: "none",
+                                                            borderRadius: "6px",
+                                                            cursor: "pointer",
+                                                            fontSize: "16px",
+                                                            fontWeight: "700",
+                                                            transition: "background-color 0.2s ease"
+                                                        }}
+                                                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#64748b"}
+                                                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#475569"}
+                                                    >
+                                                        −
+                                                    </button>
+                                                )}
                                                 <input
                                                     type="number"
                                                     min="0"
@@ -211,39 +208,41 @@ export default function DeliverablesSection() {
                                                     value={deliverable.effortPerUnit}
                                                     onChange={(e) => updateDeliverable(index, 'effortPerUnit', parseInt(e.target.value) || 0)}
                                                     style={{
-                                                        width: "100px",
+                                                        width: "70px",
                                                         padding: "8px 12px",
                                                         border: "2px solid #475569",
                                                         borderRadius: "6px",
                                                         textAlign: "center",
                                                         fontSize: "14px",
                                                         fontWeight: "500",
-                                                        backgroundColor: "#0f172a",
-                                                        color: "#f1f5f9",
+                                                        backgroundColor: isEditing ? "#0f172a" : "#1e293b",
+                                                        color: isEditing ? "#f1f5f9" : "#94a3b8",
                                                         outline: "none",
                                                         transition: "border-color 0.2s ease"
                                                     }}
-                                                    onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
+                                                    onFocus={(e) => { if (isEditing) e.target.style.borderColor = "#3b82f6" }}
                                                     onBlur={(e) => e.target.style.borderColor = "#475569"}
                                                 />
-                                                <button
-                                                    onClick={() => updateDeliverable(index, 'effortPerUnit', deliverable.effortPerUnit + 5)}
-                                                    style={{
-                                                        padding: "8px 12px",
-                                                        backgroundColor: "#475569",
-                                                        color: "white",
-                                                        border: "none",
-                                                        borderRadius: "6px",
-                                                        cursor: "pointer",
-                                                        fontSize: "16px",
-                                                        fontWeight: "700",
-                                                        transition: "background-color 0.2s ease"
-                                                    }}
-                                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#64748b"}
-                                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#475569"}
-                                                >
-                                                    +
-                                                </button>
+                                                {isEditing && (
+                                                    <button
+                                                        onClick={() => updateDeliverable(index, 'effortPerUnit', deliverable.effortPerUnit + 5)}
+                                                        style={{
+                                                            padding: "8px 12px",
+                                                            backgroundColor: "#475569",
+                                                            color: "white",
+                                                            border: "none",
+                                                            borderRadius: "6px",
+                                                            cursor: "pointer",
+                                                            fontSize: "16px",
+                                                            fontWeight: "700",
+                                                            transition: "background-color 0.2s ease"
+                                                        }}
+                                                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#64748b"}
+                                                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#475569"}
+                                                    >
+                                                        +
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -257,43 +256,45 @@ export default function DeliverablesSection() {
                 {/* Estimation Accuracy and Totals */}
                 <div style={{
                     backgroundColor: "#0f172a",
-                    borderRadius: "12px",
-                    padding: "24px",
+                    borderRadius: "8px",
+                    padding: "12px",
                     border: "1px solid #334155",
                     boxShadow: "0 4px 6px rgba(0, 0, 0, 0.3)",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "20px"
+                    gap: "12px"
                 }}>
                     {/* Estimation Accuracy */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <div style={{
-                            fontSize: "16px",
+                            fontSize: "12px",
                             fontWeight: "600",
                             color: "#f1f5f9",
-                            minWidth: "180px"
+                            minWidth: "120px"
                         }}>
                             Estimation Accuracy
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <button
-                                onClick={() => setEstimationAccuracy(Math.max(1, estimationAccuracy - 5))}
-                                style={{
-                                    padding: "10px 14px",
-                                    backgroundColor: "#475569",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "8px",
-                                    cursor: "pointer",
-                                    fontSize: "16px",
-                                    fontWeight: "700",
-                                    transition: "background-color 0.2s ease"
-                                }}
-                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#64748b"}
-                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#475569"}
-                            >
-                                −
-                            </button>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                            {isEditing && (
+                                <button
+                                    onClick={() => setEstimationAccuracy(Math.max(1, estimationAccuracy - 5))}
+                                    style={{
+                                        padding: "4px 8px",
+                                        backgroundColor: isEditing ? "#475569" : "#334155",
+                                        color: isEditing ? "white" : "#94a3b8",
+                                        border: "none",
+                                        borderRadius: "4px",
+                                        cursor: isEditing ? "pointer" : "default",
+                                        fontSize: "12px",
+                                        fontWeight: "700",
+                                        transition: "background-color 0.2s ease"
+                                    }}
+                                    onMouseOver={(e) => { if (isEditing) e.currentTarget.style.backgroundColor = "#64748b" }}
+                                    onMouseOut={(e) => { if (isEditing) e.currentTarget.style.backgroundColor = isEditing ? "#475569" : "#334155" }}
+                                >
+                                    −
+                                </button>
+                            )}
                             <input
                                 type="number"
                                 min="1"
@@ -302,98 +303,42 @@ export default function DeliverablesSection() {
                                 value={estimationAccuracy}
                                 onChange={(e) => setEstimationAccuracy(parseInt(e.target.value) || 80)}
                                 style={{
-                                    padding: "10px 16px",
-                                    border: "2px solid #475569",
-                                    borderRadius: "8px",
-                                    backgroundColor: "#1e293b",
-                                    color: "#f1f5f9",
-                                    width: "100px",
+                                    padding: "4px 8px",
+                                    border: "1px solid #475569",
+                                    borderRadius: "4px",
+                                    backgroundColor: isEditing ? "#1e293b" : "#0f172a",
+                                    color: isEditing ? "#f1f5f9" : "#94a3b8",
+                                    width: "60px",
                                     textAlign: "center",
-                                    fontSize: "16px",
+                                    fontSize: "12px",
                                     fontWeight: "600",
                                     outline: "none",
                                     transition: "border-color 0.2s ease"
                                 }}
-                                onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
+                                onFocus={(e) => { if (isEditing) e.target.style.borderColor = "#3b82f6" }}
                                 onBlur={(e) => e.target.style.borderColor = "#475569"}
                             />
-                            <button
-                                onClick={() => setEstimationAccuracy(Math.min(100, estimationAccuracy + 5))}
-                                style={{
-                                    padding: "10px 14px",
-                                    backgroundColor: "#475569",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "8px",
-                                    cursor: "pointer",
-                                    fontSize: "16px",
-                                    fontWeight: "700",
-                                    transition: "background-color 0.2s ease"
-                                }}
-                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#64748b"}
-                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#475569"}
-                            >
-                                +
-                            </button>
-                            <span style={{ fontSize: "16px", color: "#94a3b8", fontWeight: "500" }}>%</span>
-                        </div>
-                    </div>
-
-                    {/* Divider */}
-                    <div style={{ height: "1px", backgroundColor: "#334155" }}></div>
-
-                    {/* Totals */}
-                    <div style={{ display: "flex", gap: "40px" }}>
-                        {/* Total Deliverables */}
-                        <div style={{
-                            flex: 1,
-                            backgroundColor: "#3b82f6",
-                            borderRadius: "8px",
-                            padding: "16px 20px",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center"
-                        }}>
-                            <span style={{
-                                fontSize: "15px",
-                                fontWeight: "600",
-                                color: "white"
-                            }}>
-                                Total Deliverables
-                            </span>
-                            <span style={{
-                                fontSize: "18px",
-                                fontWeight: "700",
-                                color: "white"
-                            }}>
-                                {totalDeliverables}
-                            </span>
-                        </div>
-
-                        {/* Total Cost */}
-                        <div style={{
-                            flex: 1,
-                            backgroundColor: "#3b82f6",
-                            borderRadius: "8px",
-                            padding: "16px 20px",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center"
-                        }}>
-                            <span style={{
-                                fontSize: "15px",
-                                fontWeight: "600",
-                                color: "white"
-                            }}>
-                                Total Cost
-                            </span>
-                            <span style={{
-                                fontSize: "18px",
-                                fontWeight: "700",
-                                color: "white"
-                            }}>
-                                {Math.round(totalCost)}
-                            </span>
+                            {isEditing && (
+                                <button
+                                    onClick={() => setEstimationAccuracy(Math.min(100, estimationAccuracy + 5))}
+                                    style={{
+                                        padding: "4px 8px",
+                                        backgroundColor: "#475569",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "4px",
+                                        cursor: "pointer",
+                                        fontSize: "12px",
+                                        fontWeight: "700",
+                                        transition: "background-color 0.2s ease"
+                                    }}
+                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#64748b"}
+                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#475569"}
+                                >
+                                    +
+                                </button>
+                            )}
+                            <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "500" }}>%</span>
                         </div>
                     </div>
                 </div>

@@ -157,6 +157,8 @@ export default function Sidebar({ timeRemaining }: SidebarProps) {
                 }}>
                     ${Math.round(contributionMargin).toLocaleString()}
                 </div>
+
+
                 <div style={{
                     color: '#64748b',
                     fontSize: '11px',

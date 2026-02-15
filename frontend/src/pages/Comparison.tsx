@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ContractProvider, useContract } from '../context/ContractContext';
+import { formatFullK } from "../utils/formatters";
 
 export default function Comparison() {
     return (
@@ -69,8 +70,8 @@ function ComparisonContent() {
         let advantage = "neutral";
 
         if (isCurrency) {
-            userDisplay = `$${userNum.toFixed(0)}`;
-            botDisplay = `$${botNum.toFixed(0)}`;
+            userDisplay = `$${formatFullK(userNum)}`;
+            botDisplay = `$${formatFullK(botNum)}`;
             advantage = userNum < botNum ? "user" : userNum > botNum ? "bot" : "neutral";
         } else if (isPercentage) {
             userDisplay = `${userNum.toFixed(1)}%`;
@@ -300,7 +301,7 @@ function ComparisonContent() {
                             {isRecompete ? "Your Updated Bid" : "Your Bid"}
                         </h3>
                         <div style={{ fontSize: "24px", fontWeight: "700", color: userData.bidPrice < botData.bidPrice ? "white" : "#fecaca" }}>
-                            ${userData.bidPrice.toFixed(0)}
+                            ${formatFullK(userData.bidPrice)}
                         </div>
                         <div style={{ fontSize: "14px", color: userData.bidPrice < botData.bidPrice ? "rgba(255,255,255,0.8)" : "#fecaca" }}>
                             Profit: {userData.profitPercentage.toFixed(1)}% | Overhead: {userData.overheadPercentage.toFixed(1)}%
@@ -315,7 +316,7 @@ function ComparisonContent() {
                     }}>
                         <h3 style={{ margin: "0 0 10px 0", color: botData.bidPrice < userData.bidPrice ? "white" : "#3b82f6" }}>{botData.name}</h3>
                         <div style={{ fontSize: "24px", fontWeight: "700", color: botData.bidPrice < userData.bidPrice ? "white" : "#f1f5f9" }}>
-                            ${botData.bidPrice.toFixed(0)}
+                            ${formatFullK(botData.bidPrice)}
                         </div>
                         <div style={{ fontSize: "14px", color: botData.bidPrice < userData.bidPrice ? "rgba(255,255,255,0.8)" : "#94a3b8" }}>
                             Profit: {botData.profitPercentage.toFixed(1)}% | Overhead: {botData.overheadPercentage.toFixed(1)}%
@@ -333,8 +334,8 @@ function ComparisonContent() {
                         </h3>
                         <div style={{ fontSize: "24px", fontWeight: "700", color: userData.bidPrice < botData.bidPrice ? "white" : "#fecaca" }}>
                             {userData.bidPrice < botData.bidPrice ?
-                                `-$${(botData.bidPrice - userData.bidPrice).toFixed(0)}` :
-                                `$${(userData.bidPrice - botData.bidPrice).toFixed(0)}`
+                                `-$${formatFullK(botData.bidPrice - userData.bidPrice)}` :
+                                `$${formatFullK(userData.bidPrice - botData.bidPrice)}`
                             }
                         </div>
                         <div style={{ fontSize: "14px", color: userData.bidPrice < botData.bidPrice ? "rgba(255,255,255,0.8)" : "#fecaca" }}>

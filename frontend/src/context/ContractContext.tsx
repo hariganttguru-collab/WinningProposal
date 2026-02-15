@@ -250,7 +250,8 @@ const defaultResourceCostInput: ResourceCostInput = {
 const defaultProjectManagementInput: ProjectManagementInput = {
     projectDurationMonths: 5, // Fixed for this contract
     teamMembersPerTeam: 10, // 1:10 ratio
-    teamLeadSalary: 2500,
+    teamLeadSalary: 8000,
+
     teamLeadsPerManager: 12, // 1:12 ratio
     pmSalary: 3500,
 };

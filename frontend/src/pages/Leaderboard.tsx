@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import type { BotBid } from "../utils/botGenerator";
+import { formatFullK } from "../utils/formatters";
 
 interface LeaderboardEntry extends BotBid {
     rank: number;
@@ -19,11 +20,19 @@ export default function Leaderboard() {
             const allBids = [location.state.userBid, ...location.state.bots];
 
             // Separate qualified and disqualified bids
-            const qualified = allBids.filter(bid => !bid.isDisqualified);
-            const disqualified = allBids.filter(bid => bid.isDisqualified);
+            const qualified = allBids.filter(bid => !bid.isDisqualified && bid.contributionMargin > 0);
+            const disqualified = allBids.filter(bid => bid.isDisqualified || bid.contributionMargin <= 0);
 
-            // Sort qualified by contribution margin (higher is better)
-            qualified.sort((a, b) => b.contributionMargin - a.contributionMargin);
+            // Add CM reason to disqualified bids
+            disqualified.forEach(bid => {
+                if (bid.contributionMargin <= 0 && !bid.disqualificationReasons.includes('Contribution Margin must be positive')) {
+                    bid.isDisqualified = true;
+                    bid.disqualificationReasons.push('Contribution Margin must be positive');
+                }
+            });
+
+            // Sort qualified by bid price (lower is better)
+            qualified.sort((a, b) => a.bidPrice - b.bidPrice);
 
             // Assign ranks
             const rankedQualified = qualified.map((bid, index) => ({
@@ -60,12 +69,6 @@ export default function Leaderboard() {
         setSelectedBid(null);
     };
 
-    // Get bids that performed better than the user
-    const betterBids = leaderboard.filter(entry =>
-        entry.name !== "You" &&
-        !entry.isDisqualified &&
-        (userEntry?.isDisqualified || entry.rank < (userEntry?.rank || 999))
-    );
 
     return (
         <div style={{
@@ -151,7 +154,7 @@ export default function Leaderboard() {
                                 Bid Price
                             </div>
                             <div style={{ fontSize: "32px", fontWeight: "700", color: userEntry?.isDisqualified ? "#fecaca" : "#10b981" }}>
-                                ${userBid.bidPrice.toLocaleString()}
+                                ${formatFullK(userBid.bidPrice)}
                             </div>
                         </div>
                     </div>
@@ -169,7 +172,7 @@ export default function Leaderboard() {
                                 Contribution Margin
                             </div>
                             <div style={{ fontSize: "24px", fontWeight: "700", color: userEntry?.isDisqualified ? "#fecaca" : "#f1f5f9" }}>
-                                ${Math.round(userBid.contributionMargin).toLocaleString()}
+                                ${formatFullK(Math.round(userBid.contributionMargin))}
                             </div>
                         </div>
                         <div>
@@ -297,10 +300,11 @@ export default function Leaderboard() {
                                                 padding: "16px 20px",
                                                 textAlign: "right",
                                                 borderBottom: "1px solid #334155",
-                                                color: entry.bidPrice > 500000 ? "#ef4444" : "#10b981",
+                                                color: entry.bidPrice > 1000000 ? "#ef4444" : "#10b981",
+
                                                 fontWeight: "600"
                                             }}>
-                                                ${entry.bidPrice.toLocaleString()}
+                                                ${formatFullK(entry.bidPrice)}
                                             </td>
                                             <td style={{
                                                 padding: "16px 20px",
@@ -309,7 +313,7 @@ export default function Leaderboard() {
                                                 color: entry.contributionMargin > 0 ? "#10b981" : "#ef4444",
                                                 fontWeight: "600"
                                             }}>
-                                                ${Math.round(entry.contributionMargin).toLocaleString()}
+                                                ${formatFullK(Math.round(entry.contributionMargin))}
                                             </td>
                                             <td style={{
                                                 padding: "16px 20px",
@@ -409,10 +413,12 @@ export default function Leaderboard() {
                         📋 Qualification Rules
                     </h3>
                     <ul style={{ margin: "0", paddingLeft: "20px", color: "#94a3b8", lineHeight: "1.8" }}>
-                        <li>Bid price must not exceed $500,000 (client budget)</li>
+                        <li>Bid price must not exceed $1,000,000 (client budget)</li>
+
                         <li>All deliverables must be completed within 5 months</li>
-                        <li>Qualified bids are ranked by highest contribution margin</li>
-                        <li>Disqualified bids are shown at the bottom regardless of their margin</li>
+                        <li>Qualified bids must have a positive contribution margin</li>
+                        <li>Qualified bids are ranked by lowest bid price</li>
+                        <li>Disqualified bids are shown at the bottom regardless of their price or margin</li>
                     </ul>
                 </div>
             </div>

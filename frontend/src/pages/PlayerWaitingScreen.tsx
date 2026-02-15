@@ -17,35 +17,26 @@ export default function PlayerWaitingScreen() {
             return;
         }
 
-        const checkSubmissions = () => {
-            const players = currentLobby.players.filter(p => p.role !== 'admin');
-            setTotalPlayers(players.length);
+        const players = currentLobby.players.filter(p => p.role !== 'admin');
+        setTotalPlayers(players.length);
 
-            let count = 0;
-            players.forEach(player => {
-                const bidData = localStorage.getItem(`lobby_${currentLobby.code}_bid_${player.id}`);
-                if (bidData) {
-                    count++;
-                }
-            });
+        const submitted = players.filter(p => !!p.bidData);
+        setSubmittedCount(submitted.length);
 
-            setSubmittedCount(count);
-            setAllSubmitted(count === players.length && players.length > 0);
-        };
-
-        checkSubmissions();
-        const interval = setInterval(checkSubmissions, 1000);
-
-        return () => clearInterval(interval);
+        // All submitted logic is now derived from Supabase status
+        if (currentLobby.status === 'completed') {
+            setAllSubmitted(true);
+        }
     }, [currentLobby, user, navigate]);
 
-    // When all submitted, navigate to results
+    // When all evaluated and completed by admin, navigate to results
     useEffect(() => {
         if (allSubmitted && currentLobby) {
             // Wait a moment then navigate to results
-            setTimeout(() => {
+            const timer = setTimeout(() => {
                 navigate('/multiplayer-results');
             }, 2000);
+            return () => clearTimeout(timer);
         }
     }, [allSubmitted, currentLobby, navigate]);
 

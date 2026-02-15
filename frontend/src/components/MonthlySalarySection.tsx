@@ -1,22 +1,39 @@
 import { useProjectData } from '../context/ProjectDataContext';
 
 export default function MonthlySalarySection() {
-    const { salaries, updateSalary } = useProjectData();
+    const { salaries, updateSalary, isEditing } = useProjectData();
 
     // Default values for calculating limits
     const defaultValues = {
-        uiJunior: 1800,
-        uiSenior: 2300,
-        backendJunior: 2000,
-        backendSenior: 2500
+        uiJunior: 4000,
+        uiSenior: 7500,
+        backendJunior: 4800,
+        backendSenior: 9000
     };
 
     const salaryRows = [
-        { label: 'Monthly Salary of Junior UI Developer in USD', key: 'uiJunior' as const },
-        { label: 'Monthly Salary of Senior UI Developer in USD', key: 'uiSenior' as const },
-        { label: 'Monthly Salary of Junior Backend Developer in USD', key: 'backendJunior' as const },
-        { label: 'Monthly Salary of Senior Backend Developer in USD', key: 'backendSenior' as const }
+        { label: 'Junior UI Developer', key: 'uiJunior' as const },
+        { label: 'Senior UI Developer', key: 'uiSenior' as const },
+        { label: 'Junior Backend Developer', key: 'backendJunior' as const },
+        { label: 'Senior Backend Developer', key: 'backendSenior' as const }
     ];
+
+    const inputBtnStyle = {
+        padding: '0',
+        width: '24px',
+        height: '24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: isEditing ? 'rgba(34, 197, 94, 0.8)' : '#334155', // Darker green or neutral
+        color: isEditing ? '#064e3b' : '#94a3b8',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: isEditing ? 'pointer' : 'default', // Added check for cursor
+        fontSize: '16px',
+        fontWeight: 'bold',
+        transition: 'all 0.2s',
+    };
 
     return (
         <div id="section-5" style={{
@@ -32,21 +49,21 @@ export default function MonthlySalarySection() {
             <div style={{
                 backgroundColor: "#0f172a",
                 color: "#f1f5f9",
-                padding: "20px 30px",
+                padding: "10px 15px",
                 fontWeight: "600",
-                fontSize: "20px",
+                fontSize: "14px",
                 borderBottom: "1px solid #334155"
             }}>
                 Monthly Salary
             </div>
 
             <div style={{
-                padding: "40px",
+                padding: "15px",
                 color: "#e2e8f0"
             }}>
                 <div style={{
                     backgroundColor: "#0f172a",
-                    borderRadius: "12px",
+                    borderRadius: "8px",
                     overflow: "hidden",
                     boxShadow: "0 4px 6px rgba(0, 0, 0, 0.3)",
                     border: "1px solid #334155"
@@ -56,67 +73,61 @@ export default function MonthlySalarySection() {
                             {salaryRows.map((row, index) => (
                                 <tr key={row.key}>
                                     <td style={{
-                                        padding: "16px 20px",
+                                        padding: "8px 12px",
                                         borderBottom: index < salaryRows.length - 1 ? "1px solid #334155" : "none",
                                         backgroundColor: "#1e293b",
                                         color: "#e2e8f0",
                                         fontWeight: "500",
+                                        fontSize: "11px",
                                         width: "70%"
                                     }}>
                                         {row.label}
                                     </td>
                                     <td style={{
-                                        padding: "16px 20px",
+                                        padding: "8px 12px",
                                         borderBottom: index < salaryRows.length - 1 ? "1px solid #334155" : "none",
                                         borderLeft: "1px solid #334155",
                                         textAlign: "center",
-                                        backgroundColor: "#4ade80",
+                                        backgroundColor: isEditing ? "#4ade80" : "#0f172a",
                                         width: "30%"
                                     }}>
                                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                                            <button
-                                                onClick={() => {
-                                                    const minValue = defaultValues[row.key] - 1000;
-                                                    updateSalary(row.key, Math.max(minValue, salaries[row.key] - 100));
-                                                }}
-                                                style={{
-                                                    padding: "10px 14px",
-                                                    backgroundColor: "#22c55e",
-                                                    color: "#0f172a",
-                                                    border: "none",
-                                                    borderRadius: "6px",
-                                                    cursor: "pointer",
-                                                    fontSize: "16px",
-                                                    fontWeight: "700",
-                                                    transition: "background-color 0.2s ease"
-                                                }}
-                                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#16a34a"}
-                                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#22c55e"}
-                                            >
-                                                −
-                                            </button>
+                                            {isEditing && (
+                                                <button
+                                                    onClick={() => {
+                                                        const minValue = Math.max(0, defaultValues[row.key] - 2000); // Increased range
+                                                        updateSalary(row.key, Math.max(minValue, salaries[row.key] - 100));
+                                                    }}
+                                                    style={inputBtnStyle}
+                                                    onMouseOver={(e) => { if (isEditing) e.currentTarget.style.backgroundColor = 'rgba(21, 128, 61, 0.8)' }}
+                                                    onMouseOut={(e) => { if (isEditing) e.currentTarget.style.backgroundColor = 'rgba(34, 197, 94, 0.8)' }}
+                                                >
+                                                    −
+                                                </button>
+                                            )}
                                             <input
                                                 type="number"
-                                                min={defaultValues[row.key] - 1000}
-                                                max={defaultValues[row.key] + 1000}
+                                                min={Math.max(0, defaultValues[row.key] - 2000)} // Increased range
+                                                max={defaultValues[row.key] + 2000} // Increased range
                                                 step="100"
                                                 value={salaries[row.key]}
                                                 onChange={(e) => {
                                                     const value = parseInt(e.target.value) || 0;
-                                                    const minValue = defaultValues[row.key] - 1000;
-                                                    const maxValue = defaultValues[row.key] + 1000;
+                                                    const minValue = Math.max(0, defaultValues[row.key] - 2000);
+                                                    const maxValue = defaultValues[row.key] + 2000;
                                                     updateSalary(row.key, Math.min(maxValue, Math.max(minValue, value)));
                                                 }}
+
                                                 style={{
-                                                    width: "120px",
-                                                    padding: "10px 14px",
-                                                    border: "2px solid #22c55e",
-                                                    borderRadius: "6px",
+                                                    width: "60px",
+                                                    padding: "4px 8px",
+                                                    border: isEditing ? "1px solid #22c55e" : "1px solid #475569",
+                                                    borderRadius: "4px",
                                                     textAlign: "center",
-                                                    fontSize: "16px",
-                                                    fontWeight: "600",
-                                                    backgroundColor: "#dcfce7",
-                                                    color: "#0f172a",
+                                                    fontSize: "12px",
+                                                    fontWeight: isEditing ? "600" : "500",
+                                                    backgroundColor: isEditing ? "#dcfce7" : "#0f172a",
+                                                    color: isEditing ? "#0f172a" : "#f1f5f9",
                                                     outline: "none",
                                                     transition: "all 0.2s ease"
                                                 }}
@@ -124,30 +135,23 @@ export default function MonthlySalarySection() {
                                                     e.target.style.borderColor = "#3b82f6";
                                                 }}
                                                 onBlur={(e) => {
-                                                    e.target.style.borderColor = "#22c55e";
+                                                    e.target.style.borderColor = isEditing ? "#22c55e" : "#475569";
                                                 }}
                                             />
-                                            <button
-                                                onClick={() => {
-                                                    const maxValue = defaultValues[row.key] + 1000;
-                                                    updateSalary(row.key, Math.min(maxValue, salaries[row.key] + 100));
-                                                }}
-                                                style={{
-                                                    padding: "10px 14px",
-                                                    backgroundColor: "#22c55e",
-                                                    color: "#0f172a",
-                                                    border: "none",
-                                                    borderRadius: "6px",
-                                                    cursor: "pointer",
-                                                    fontSize: "16px",
-                                                    fontWeight: "700",
-                                                    transition: "background-color 0.2s ease"
-                                                }}
-                                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#16a34a"}
-                                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#22c55e"}
-                                            >
-                                                +
-                                            </button>
+                                            {isEditing && (
+                                                <button
+                                                    onClick={() => {
+                                                        const maxValue = defaultValues[row.key] + 2000;
+                                                        updateSalary(row.key, Math.min(maxValue, salaries[row.key] + 100));
+                                                    }}
+
+                                                    style={inputBtnStyle}
+                                                    onMouseOver={(e) => { if (isEditing) e.currentTarget.style.backgroundColor = 'rgba(21, 128, 61, 0.8)' }}
+                                                    onMouseOut={(e) => { if (isEditing) e.currentTarget.style.backgroundColor = 'rgba(34, 197, 94, 0.8)' }}
+                                                >
+                                                    +
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

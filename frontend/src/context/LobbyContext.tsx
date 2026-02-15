@@ -1,27 +1,32 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, type ReactNode, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 
 interface Player {
-    id: string;
+    id: string; // This is the user_id (e.g. "admin-...", "user-...")
     username: string;
     role: 'admin' | 'user';
     joinedAt: number;
     isReady: boolean;
+    bidData: any | null; // Added for final submissions
 }
 
 interface Lobby {
+    id: string; // DB UUID
     code: string;
     adminId: string;
     players: Player[];
     status: 'waiting' | 'starting' | 'in-progress' | 'completed';
     createdAt: number;
+    simulationData: any;
 }
 
 interface LobbyContextType {
     currentLobby: Lobby | null;
-    createLobby: (adminId: string, adminUsername: string) => string;
-    joinLobby: (code: string, userId: string, username: string) => boolean;
-    leaveLobby: (userId: string) => void;
-    startGame: () => void;
+    createLobby: (adminId: string, adminUsername: string) => Promise<string | null>;
+    joinLobby: (code: string, userId: string, username: string) => Promise<boolean>;
+    leaveLobby: (userId: string) => Promise<void>;
+    startGame: () => Promise<void>;
+    submitBid: (userId: string, bidData: any) => Promise<void>;
     getLobbyPlayers: () => Player[];
     isAdmin: (userId: string) => boolean;
 }
@@ -31,42 +36,69 @@ const LobbyContext = createContext<LobbyContextType | undefined>(undefined);
 export const LobbyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [currentLobby, setCurrentLobby] = useState<Lobby | null>(null);
 
-    // Sync lobby state from localStorage
-    const syncLobbyFromStorage = () => {
-        if (!currentLobby) return;
+    // Fetch full lobby state (metadata + players)
+    const fetchLobbyState = useCallback(async (lobbyCode: string) => {
+        const { data: lobbyData, error: lobbyError } = await supabase
+            .from('lobbies')
+            .select('*, players(*)')
+            .eq('code', lobbyCode)
+            .single();
 
-        const storedLobby = localStorage.getItem(`lobby_${currentLobby.code}`);
-        if (storedLobby) {
-            const parsedLobby = JSON.parse(storedLobby);
-            // Only update if there are actual changes
-            if (JSON.stringify(parsedLobby) !== JSON.stringify(currentLobby)) {
-                setCurrentLobby(parsedLobby);
-            }
+        if (lobbyError || !lobbyData) {
+            console.error('Error fetching lobby:', lobbyError);
+            return null;
         }
-    };
 
-    // Listen for storage events (cross-tab communication)
-    useEffect(() => {
-        const handleStorageChange = (e: StorageEvent) => {
-            if (e.key?.startsWith('lobby_') && currentLobby) {
-                syncLobbyFromStorage();
-            }
+        const formattedPlayers: Player[] = lobbyData.players.map((p: any) => ({
+            id: p.user_id,
+            username: p.username,
+            role: p.role,
+            isReady: p.is_ready,
+            joinedAt: new Date(p.joined_at).getTime(),
+            bidData: p.bid_data
+        }));
+
+        const lobby: Lobby = {
+            id: lobbyData.id,
+            code: lobbyData.code,
+            adminId: lobbyData.admin_id,
+            status: lobbyData.status,
+            createdAt: new Date(lobbyData.created_at).getTime(),
+            players: formattedPlayers,
+            simulationData: lobbyData.simulation_data
         };
 
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
-    }, [currentLobby]);
+        return lobby;
+    }, []);
 
-    // Poll localStorage every 500ms for updates (for same-tab updates)
+    // Set up real-time subscriptions
     useEffect(() => {
         if (!currentLobby) return;
 
-        const interval = setInterval(() => {
-            syncLobbyFromStorage();
-        }, 500);
+        const lobbyChannel = supabase
+            .channel(`lobby_${currentLobby.code}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'lobbies', filter: `code=eq.${currentLobby.code}` },
+                async () => {
+                    const updatedLobby = await fetchLobbyState(currentLobby.code);
+                    if (updatedLobby) setCurrentLobby(updatedLobby);
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'players', filter: `lobby_id=eq.${currentLobby.id}` },
+                async () => {
+                    const updatedLobby = await fetchLobbyState(currentLobby.code);
+                    if (updatedLobby) setCurrentLobby(updatedLobby);
+                }
+            )
+            .subscribe();
 
-        return () => clearInterval(interval);
-    }, [currentLobby]);
+        return () => {
+            supabase.removeChannel(lobbyChannel);
+        };
+    }, [currentLobby?.code, currentLobby?.id, fetchLobbyState]);
 
     // Generate a random 6-character lobby code
     const generateLobbyCode = (): string => {
@@ -78,115 +110,135 @@ export const LobbyProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         return code;
     };
 
-    const createLobby = (adminId: string, adminUsername: string): string => {
+    const createLobby = async (adminId: string, adminUsername: string): Promise<string | null> => {
         const code = generateLobbyCode();
-        const newLobby: Lobby = {
-            code,
-            adminId,
-            players: [{
-                id: adminId,
+
+        // 1. Create Lobby
+        const { data: lobby, error: lobbyError } = await supabase
+            .from('lobbies')
+            .insert([{
+                code,
+                admin_id: adminId,
+                status: 'waiting',
+                simulation_data: {}
+            }])
+            .select()
+            .single();
+
+        if (lobbyError) {
+            console.error('Error creating lobby:', lobbyError);
+            return null;
+        }
+
+        // 2. Add Admin as Player
+        const { error: playerError } = await supabase
+            .from('players')
+            .insert([{
+                lobby_id: lobby.id,
+                user_id: adminId,
                 username: adminUsername,
                 role: 'admin',
-                joinedAt: Date.now(),
-                isReady: true
-            }],
-            status: 'waiting',
-            createdAt: Date.now()
-        };
+                is_ready: true
+            }]);
 
-        setCurrentLobby(newLobby);
+        if (playerError) {
+            console.error('Error adding admin player:', playerError);
+            return null;
+        }
 
-        // Store in localStorage for persistence
-        localStorage.setItem(`lobby_${code}`, JSON.stringify(newLobby));
-
-        // Trigger storage event manually for same-tab updates
-        window.dispatchEvent(new StorageEvent('storage', {
-            key: `lobby_${code}`,
-            newValue: JSON.stringify(newLobby)
-        }));
-
+        const fullLobby = await fetchLobbyState(code);
+        setCurrentLobby(fullLobby);
         return code;
     };
 
-    const joinLobby = (code: string, userId: string, username: string): boolean => {
-        // Try to load lobby from localStorage
-        const storedLobby = localStorage.getItem(`lobby_${code}`);
+    const joinLobby = async (code: string, userId: string, username: string): Promise<boolean> => {
+        const { data: lobby, error: lobbyError } = await supabase
+            .from('lobbies')
+            .select('*')
+            .eq('code', code)
+            .single();
 
-        if (!storedLobby) {
-            return false; // Lobby doesn't exist
+        if (lobbyError || !lobby) {
+            console.error('Lobby not found');
+            return false;
         }
-
-        const lobby: Lobby = JSON.parse(storedLobby);
 
         if (lobby.status !== 'waiting') {
-            return false; // Game already started
+            console.error('Game already started');
+            return false;
         }
 
-        // Check if user already in lobby
-        if (lobby.players.some(p => p.id === userId)) {
-            setCurrentLobby(lobby);
-            return true;
+        // Add player (ignore if already exists)
+        const { error: playerError } = await supabase
+            .from('players')
+            .upsert([{
+                lobby_id: lobby.id,
+                user_id: userId,
+                username,
+                role: 'user',
+                is_ready: true
+            }], { onConflict: 'lobby_id,user_id' });
+
+        if (playerError) {
+            console.error('Error joining lobby:', playerError);
+            return false;
         }
 
-        // Add new player
-        const newPlayer: Player = {
-            id: userId,
-            username,
-            role: 'user',
-            joinedAt: Date.now(),
-            isReady: true
-        };
-
-        lobby.players.push(newPlayer);
-
-        // Update lobby
-        const updatedLobby = { ...lobby };
-        setCurrentLobby(updatedLobby);
-        localStorage.setItem(`lobby_${code}`, JSON.stringify(updatedLobby));
-
-        // Trigger storage event manually for same-tab updates
-        window.dispatchEvent(new StorageEvent('storage', {
-            key: `lobby_${code}`,
-            newValue: JSON.stringify(updatedLobby)
-        }));
-
+        const fullLobby = await fetchLobbyState(code);
+        setCurrentLobby(fullLobby);
         return true;
     };
 
-    const leaveLobby = (userId: string) => {
+    const leaveLobby = async (userId: string) => {
         if (!currentLobby) return;
 
-        const updatedPlayers = currentLobby.players.filter(p => p.id !== userId);
+        const { error: playerError } = await supabase
+            .from('players')
+            .delete()
+            .match({ lobby_id: currentLobby.id, user_id: userId });
 
-        if (updatedPlayers.length === 0) {
-            // Last player left, delete lobby
-            localStorage.removeItem(`lobby_${currentLobby.code}`);
-            setCurrentLobby(null);
-        } else {
-            const updatedLobby = { ...currentLobby, players: updatedPlayers };
-            setCurrentLobby(updatedLobby);
-            localStorage.setItem(`lobby_${currentLobby.code}`, JSON.stringify(updatedLobby));
+        if (playerError) {
+            console.error('Error leaving lobby:', playerError);
+            return;
+        }
 
-            // Trigger storage event manually for same-tab updates
-            window.dispatchEvent(new StorageEvent('storage', {
-                key: `lobby_${currentLobby.code}`,
-                newValue: JSON.stringify(updatedLobby)
-            }));
+        // Check if any players left
+        const { data: playersLeft, error: countError } = await supabase
+            .from('players')
+            .select('id')
+            .eq('lobby_id', currentLobby.id);
+
+        if (!countError && playersLeft && playersLeft.length === 0) {
+            await supabase.from('lobbies').delete().eq('id', currentLobby.id);
+        }
+
+        setCurrentLobby(null);
+    };
+
+    const startGame = async () => {
+        if (!currentLobby) return;
+
+        const { error } = await supabase
+            .from('lobbies')
+            .update({ status: 'in-progress' })
+            .eq('id', currentLobby.id);
+
+        if (error) {
+            console.error('Error starting game:', error);
         }
     };
 
-    const startGame = () => {
+    const submitBid = async (userId: string, bidData: any) => {
         if (!currentLobby) return;
 
-        const updatedLobby = { ...currentLobby, status: 'in-progress' as const };
-        setCurrentLobby(updatedLobby);
-        localStorage.setItem(`lobby_${currentLobby.code}`, JSON.stringify(updatedLobby));
+        const { error } = await supabase
+            .from('players')
+            .update({ bid_data: bidData })
+            .match({ lobby_id: currentLobby.id, user_id: userId });
 
-        // Trigger storage event manually for same-tab updates
-        window.dispatchEvent(new StorageEvent('storage', {
-            key: `lobby_${currentLobby.code}`,
-            newValue: JSON.stringify(updatedLobby)
-        }));
+        if (error) {
+            console.error('Error submitting bid:', error);
+        }
     };
 
     const getLobbyPlayers = (): Player[] => {
@@ -204,6 +256,7 @@ export const LobbyProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             joinLobby,
             leaveLobby,
             startGame,
+            submitBid,
             getLobbyPlayers,
             isAdmin
         }}>
