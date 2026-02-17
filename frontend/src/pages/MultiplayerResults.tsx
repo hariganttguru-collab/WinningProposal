@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLobby } from '../context/LobbyContext';
 import { formatFullK } from '../utils/formatters';
+import { supabase } from '../lib/supabase';
 
 interface PlayerBid {
     userId?: string;
@@ -26,6 +27,9 @@ export default function MultiplayerResults() {
     const { currentLobby } = useLobby();
     const [allBids, setAllBids] = useState<PlayerBid[]>([]);
     const [userBid, setUserBid] = useState<PlayerBid | null>(null);
+    const [feedbackText, setFeedbackText] = useState('');
+    const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+    const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
     useEffect(() => {
         if (!user || !currentLobby) {
@@ -124,7 +128,47 @@ export default function MultiplayerResults() {
         });
     };
 
+    const handleSubmitFeedback = async () => {
+        if (!feedbackText.trim() || !currentLobby) return;
+
+        setSubmittingFeedback(true);
+        try {
+            // Fetch current lobby to get latest simulation_data
+            const { data: lobby, error: fetchError } = await supabase
+                .from('lobbies')
+                .select('simulation_data')
+                .eq('id', currentLobby.id)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            const simData = lobby.simulation_data || {};
+            const existingFeedback = simData.feedback || [];
+
+            const updatedSimData = {
+                ...simData,
+                feedback: [...existingFeedback, feedbackText.trim()]
+            };
+
+            const { error: updateError } = await supabase
+                .from('lobbies')
+                .update({ simulation_data: updatedSimData })
+                .eq('id', currentLobby.id);
+
+            if (updateError) throw updateError;
+
+            setFeedbackSubmitted(true);
+            setFeedbackText('');
+        } catch (error) {
+            console.error('Error submitting feedback:', error);
+            alert('Failed to submit feedback. Please try again.');
+        } finally {
+            setSubmittingFeedback(false);
+        }
+    };
+
     if (!currentLobby || !userBid) {
+
         return null;
     }
 
@@ -277,7 +321,76 @@ export default function MultiplayerResults() {
                     </div>
                 </div>
 
+                {/* Anonymous Feedback Section */}
+                <div style={{ marginTop: '40px', padding: '30px', backgroundColor: '#1e293b', borderRadius: '16px', border: '1px solid #334155', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)' }}>
+                    <h3 style={{ margin: '0 0 15px 0', color: '#f1f5f9', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span>💬</span> Game Feedback
+                    </h3>
+
+                    {feedbackSubmitted ? (
+                        <div style={{ padding: '20px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', borderRadius: '8px', textAlign: 'center' }}>
+                            <div style={{ fontSize: '18px', color: '#10b981', fontWeight: '600', marginBottom: '5px' }}>Thank you!</div>
+                            <div style={{ color: '#94a3b8' }}>Your anonymous feedback has been shared with the admin.</div>
+                            <button
+                                onClick={() => setFeedbackSubmitted(false)}
+                                style={{ marginTop: '15px', padding: '8px 16px', backgroundColor: 'transparent', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}
+                            >
+                                Send another?
+                            </button>
+                        </div>
+                    ) : (
+                        <div>
+                            <p style={{ color: '#94a3b8', marginBottom: '20px', fontSize: '14px' }}>
+                                How was the simulation? Do you have any suggestions to make it better? (Your name will not be shared)
+                            </p>
+                            <textarea
+                                value={feedbackText}
+                                onChange={(e) => setFeedbackText(e.target.value)}
+                                placeholder="Type your anonymous feedback here..."
+                                style={{
+                                    width: '100%',
+                                    minHeight: '100px',
+                                    padding: '15px',
+                                    backgroundColor: '#0f172a',
+                                    border: '1px solid #334155',
+                                    borderRadius: '8px',
+                                    color: '#f1f5f9',
+                                    fontSize: '15px',
+                                    fontFamily: 'inherit',
+                                    resize: 'vertical',
+                                    outline: 'none',
+                                    marginBottom: '15px',
+                                    boxSizing: 'border-box'
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                                onBlur={(e) => e.target.style.borderColor = '#334155'}
+                            />
+                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={handleSubmitFeedback}
+                                    disabled={submittingFeedback || !feedbackText.trim()}
+                                    style={{
+                                        padding: '12px 24px',
+                                        backgroundColor: feedbackText.trim() ? '#3b82f6' : '#475569',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        fontSize: '16px',
+                                        fontWeight: '600',
+                                        cursor: feedbackText.trim() ? 'pointer' : 'not-allowed',
+                                        transition: 'all 0.2s ease',
+                                        opacity: submittingFeedback ? 0.7 : 1
+                                    }}
+                                >
+                                    {submittingFeedback ? 'Submitting...' : 'Submit Anonymous Feedback'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 {/* Rules Info */}
+
                 <div style={{ marginTop: '40px', padding: '20px 30px', backgroundColor: '#1e293b', borderRadius: '12px', border: '1px solid #334155' }}>
                     <h3 style={{ margin: '0 0 15px 0', color: '#f1f5f9', fontSize: '18px' }}>📋 Qualification Rules</h3>
                     <ul style={{ margin: '0', paddingLeft: '20px', color: '#94a3b8', lineHeight: '1.8' }}>

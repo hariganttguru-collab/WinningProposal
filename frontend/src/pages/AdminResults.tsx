@@ -339,7 +339,46 @@ export default function AdminResults() {
                     </div>
                 )}
 
+                {/* Player Feedback Section */}
+
+                <div style={{ backgroundColor: '#1e293b', borderRadius: '12px', padding: '30px', border: '1px solid #334155', marginBottom: '30px' }}>
+                    <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#f1f5f9', margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span>💬</span> Player Feedback ({currentLobby.simulationData?.feedback?.length || 0})
+                    </h3>
+
+                    {!currentLobby.simulationData?.feedback || currentLobby.simulationData.feedback.length === 0 ? (
+                        <div style={{ padding: '30px', backgroundColor: '#0f172a', borderRadius: '8px', border: '1px solid #334155', textAlign: 'center', color: '#94a3b8' }}>
+                            No feedback received yet.
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gap: '12px', maxHeight: '400px', overflowY: 'auto', paddingRight: '5px' }}>
+                            {[...currentLobby.simulationData.feedback].reverse().map((text: string, idx: number) => (
+                                <div
+                                    key={idx}
+                                    style={{
+                                        backgroundColor: '#0f172a',
+                                        padding: '16px 20px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #334155',
+                                        color: '#e2e8f0',
+                                        fontSize: '15px',
+                                        lineHeight: '1.5',
+                                        position: 'relative',
+                                        borderLeft: '4px solid #3b82f6'
+                                    }}
+                                >
+                                    {text}
+                                    <div style={{ fontSize: '10px', color: '#64748b', marginTop: '10px', textAlign: 'right' }}>
+                                        Anonymous User
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
                 {!allSubmitted && submittedCount > 0 && (
+
                     <div style={{ backgroundColor: '#1e293b', borderRadius: '12px', padding: '30px', border: '1px solid #334155' }}>
                         <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#f1f5f9', margin: '0 0 20px 0' }}>
                             Players Who Have Submitted ({submittedCount})
