@@ -30,6 +30,7 @@ export default function MultiplayerResults() {
     const [feedbackText, setFeedbackText] = useState('');
     const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
     const [submittingFeedback, setSubmittingFeedback] = useState(false);
+    const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
     useEffect(() => {
         if (!user || !currentLobby) {
@@ -145,9 +146,15 @@ export default function MultiplayerResults() {
             const simData = lobby.simulation_data || {};
             const existingFeedback = simData.feedback || [];
 
+            const newFeedback = {
+                username: userBid?.username || user?.email?.split('@')[0] || 'Unknown',
+                text: feedbackText.trim(),
+                timestamp: Date.now()
+            };
+
             const updatedSimData = {
                 ...simData,
-                feedback: [...existingFeedback, feedbackText.trim()]
+                feedback: [...existingFeedback, newFeedback]
             };
 
             const { error: updateError } = await supabase
@@ -177,21 +184,42 @@ export default function MultiplayerResults() {
     return (
         <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#e2e8f0', padding: '40px 20px' }}>
             <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-                <div style={{ marginBottom: '40px' }}>
-                    <button onClick={() => navigate('/dashboard')} style={{ padding: '12px 24px', backgroundColor: '#1e293b', color: '#e2e8f0', border: '2px solid #475569', borderRadius: '8px', cursor: 'pointer', marginBottom: '20px', fontSize: '14px', fontWeight: '500' }}>
-                        ← Back to Dashboard
-                    </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
+                    <div>
+                        <button onClick={() => navigate('/dashboard')} style={{ padding: '12px 24px', backgroundColor: '#1e293b', color: '#e2e8f0', border: '2px solid #475569', borderRadius: '8px', cursor: 'pointer', marginBottom: '20px', fontSize: '14px', fontWeight: '500' }}>
+                            ← Back to Dashboard
+                        </button>
 
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: '700', margin: '0 0 10px 0', color: '#f1f5f9' }}>
-                        🏆 Multiplayer Results
-                    </h1>
+                        <h1 style={{ fontSize: '2.5rem', fontWeight: '700', margin: '0 0 10px 0', color: '#f1f5f9' }}>
+                            🏆 Multiplayer Results
+                        </h1>
 
-                    <div style={{ fontSize: '1.2rem', color: '#94a3b8', marginBottom: '20px' }}>
-                        {userEntry?.isDisqualified
-                            ? "Your bid was disqualified. See details below."
-                            : `You ranked #${userEntry?.rank} out of ${allBids.filter(e => !e.isDisqualified).length} qualified bids!`
-                        }
+                        <div style={{ fontSize: '1.2rem', color: '#94a3b8' }}>
+                            {userEntry?.isDisqualified
+                                ? "Your bid was disqualified. See details below."
+                                : `You ranked #${userEntry?.rank} out of ${allBids.filter(e => !e.isDisqualified).length} qualified bids!`
+                            }
+                        </div>
                     </div>
+
+                    <button
+                        onClick={() => setShowFeedbackModal(true)}
+                        style={{
+                            padding: '12px 24px',
+                            backgroundColor: '#3b82f6',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '15px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}
+                    >
+                        <span>💬</span> Give Feedback
+                    </button>
                 </div>
 
                 {/* Your Result Card */}
@@ -321,73 +349,84 @@ export default function MultiplayerResults() {
                     </div>
                 </div>
 
-                {/* Anonymous Feedback Section */}
-                <div style={{ marginTop: '40px', padding: '30px', backgroundColor: '#1e293b', borderRadius: '16px', border: '1px solid #334155', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)' }}>
-                    <h3 style={{ margin: '0 0 15px 0', color: '#f1f5f9', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span>💬</span> Game Feedback
-                    </h3>
-
-                    {feedbackSubmitted ? (
-                        <div style={{ padding: '20px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', borderRadius: '8px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '18px', color: '#10b981', fontWeight: '600', marginBottom: '5px' }}>Thank you!</div>
-                            <div style={{ color: '#94a3b8' }}>Your anonymous feedback has been shared with the admin.</div>
-                            <button
-                                onClick={() => setFeedbackSubmitted(false)}
-                                style={{ marginTop: '15px', padding: '8px 16px', backgroundColor: 'transparent', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}
-                            >
-                                Send another?
-                            </button>
-                        </div>
-                    ) : (
-                        <div>
-                            <p style={{ color: '#94a3b8', marginBottom: '20px', fontSize: '14px' }}>
-                                How was the simulation? Do you have any suggestions to make it better? (Your name will not be shared)
-                            </p>
-                            <textarea
-                                value={feedbackText}
-                                onChange={(e) => setFeedbackText(e.target.value)}
-                                placeholder="Type your anonymous feedback here..."
-                                style={{
-                                    width: '100%',
-                                    minHeight: '100px',
-                                    padding: '15px',
-                                    backgroundColor: '#0f172a',
-                                    border: '1px solid #334155',
-                                    borderRadius: '8px',
-                                    color: '#f1f5f9',
-                                    fontSize: '15px',
-                                    fontFamily: 'inherit',
-                                    resize: 'vertical',
-                                    outline: 'none',
-                                    marginBottom: '15px',
-                                    boxSizing: 'border-box'
-                                }}
-                                onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                                onBlur={(e) => e.target.style.borderColor = '#334155'}
-                            />
-                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                <button
-                                    onClick={handleSubmitFeedback}
-                                    disabled={submittingFeedback || !feedbackText.trim()}
-                                    style={{
-                                        padding: '12px 24px',
-                                        backgroundColor: feedbackText.trim() ? '#3b82f6' : '#475569',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '8px',
-                                        fontSize: '16px',
-                                        fontWeight: '600',
-                                        cursor: feedbackText.trim() ? 'pointer' : 'not-allowed',
-                                        transition: 'all 0.2s ease',
-                                        opacity: submittingFeedback ? 0.7 : 1
-                                    }}
-                                >
-                                    {submittingFeedback ? 'Submitting...' : 'Submit Anonymous Feedback'}
-                                </button>
+                {/* Feedback Modal */}
+                {showFeedbackModal && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+                        <div style={{ backgroundColor: '#1e293b', borderRadius: '16px', maxWidth: '600px', width: '100%', padding: '30px', border: '1px solid #334155', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                <h3 style={{ margin: 0, fontSize: '24px', color: '#f1f5f9' }}>💬 Simulation Feedback</h3>
+                                <button onClick={() => setShowFeedbackModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '24px', cursor: 'pointer' }}>×</button>
                             </div>
+
+                            {feedbackSubmitted ? (
+                                <div style={{ textAlign: 'center', padding: '30px' }}>
+                                    <div style={{ fontSize: '48px', marginBottom: '20px' }}>✅</div>
+                                    <h4 style={{ fontSize: '20px', color: '#10b981', margin: '0 0 10px 0' }}>Feedback Submitted!</h4>
+                                    <p style={{ color: '#94a3b8', margin: '0 0 30px 0' }}>Thank you for your valuable input. The admin can now see your comments.</p>
+                                    <button
+                                        onClick={() => {
+                                            setFeedbackSubmitted(false);
+                                            setShowFeedbackModal(false);
+                                        }}
+                                        style={{ padding: '12px 30px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            ) : (
+                                <div>
+                                    <p style={{ color: '#94a3b8', marginBottom: '20px' }}>
+                                        How was the simulation? Do you have any suggestions to make it better?
+                                    </p>
+                                    <textarea
+                                        value={feedbackText}
+                                        onChange={(e) => setFeedbackText(e.target.value)}
+                                        placeholder="Type your feedback here..."
+                                        style={{
+                                            width: '100%',
+                                            minHeight: '150px',
+                                            padding: '15px',
+                                            backgroundColor: '#0f172a',
+                                            border: '1px solid #334155',
+                                            borderRadius: '8px',
+                                            color: '#f1f5f9',
+                                            fontSize: '15px',
+                                            fontFamily: 'inherit',
+                                            resize: 'vertical',
+                                            outline: 'none',
+                                            marginBottom: '20px',
+                                            boxSizing: 'border-box'
+                                        }}
+                                    />
+                                    <div style={{ display: 'flex', gap: '15px', justifyContent: 'flex-end' }}>
+                                        <button
+                                            onClick={() => setShowFeedbackModal(false)}
+                                            style={{ padding: '12px 24px', backgroundColor: 'transparent', color: '#94a3b8', border: '1px solid #475569', borderRadius: '8px', cursor: 'pointer' }}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleSubmitFeedback}
+                                            disabled={submittingFeedback || !feedbackText.trim()}
+                                            style={{
+                                                padding: '12px 24px',
+                                                backgroundColor: feedbackText.trim() ? '#3b82f6' : '#475569',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '8px',
+                                                fontWeight: '600',
+                                                cursor: feedbackText.trim() ? 'pointer' : 'not-allowed',
+                                                opacity: submittingFeedback ? 0.7 : 1
+                                            }}
+                                        >
+                                            {submittingFeedback ? 'Submitting...' : 'Submit Feedback'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Rules Info */}
 

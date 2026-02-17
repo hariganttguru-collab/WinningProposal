@@ -215,6 +215,8 @@ function ContractContent() {
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
     const [showNotification, setShowNotification] = useState(false);
     const [notificationMessage, setNotificationMessage] = useState('');
+    const [showTimeWarning, setShowTimeWarning] = useState(false);
+    const [timeWarningTitle, setTimeWarningTitle] = useState('');
 
     const handleSubmit = () => {
         // Generate user bid data
@@ -380,28 +382,30 @@ function ContractContent() {
             const remainingSeconds = Math.floor(remaining / 1000);
             const remainingMinutes = Math.floor(remainingSeconds / 60);
 
-            // 5 minutes warning
-            if (remainingMinutes === 5 && remainingSeconds <= 300 && remainingSeconds > 295 && !notifiedIntervals.has('5min')) {
-                notifiedIntervals.add('5min');
-                setNotificationMessage('⏰ 5 minutes remaining!');
-                setShowNotification(true);
-                setTimeout(() => setShowNotification(false), 3000);
+            // Reminder intervals requested by user: 20, 10, 5, 2 minutes
+            const reminderMinutes = [20, 10, 5, 2];
+
+            for (const mins of reminderMinutes) {
+                const thresholdSeconds = mins * 60;
+                const key = `${mins}min`;
+
+                if (remainingMinutes === mins && remainingSeconds <= thresholdSeconds && remainingSeconds > (thresholdSeconds - 5) && !notifiedIntervals.has(key)) {
+                    notifiedIntervals.add(key);
+                    setTimeWarningTitle(`${mins} Minutes Remaining!`);
+                    setShowTimeWarning(true);
+                    // Higher minutes auto-close, lower ones might need more attention
+                    setTimeout(() => setShowTimeWarning(false), 5000);
+                    break;
+                }
             }
-            // 2 minutes warning
-            else if (remainingMinutes === 2 && remainingSeconds <= 120 && remainingSeconds > 115 && !notifiedIntervals.has('2min')) {
-                notifiedIntervals.add('2min');
-                setNotificationMessage('⏰ 2 minutes remaining!');
-                setShowNotification(true);
-                setTimeout(() => setShowNotification(false), 3000);
-            }
-            // 1 minute warning
-            else if (remainingMinutes === 1 && remainingSeconds <= 60 && remainingSeconds > 55 && !notifiedIntervals.has('1min')) {
+
+            // Keep the 1 minute and 30 seconds simple notifications
+            if (remainingMinutes === 1 && remainingSeconds <= 60 && remainingSeconds > 55 && !notifiedIntervals.has('1min')) {
                 notifiedIntervals.add('1min');
                 setNotificationMessage('⏰ 1 minute remaining!');
                 setShowNotification(true);
                 setTimeout(() => setShowNotification(false), 3000);
             }
-            // 30 seconds warning
             else if (remainingSeconds === 30 && !notifiedIntervals.has('30sec')) {
                 notifiedIntervals.add('30sec');
                 setNotificationMessage('⏰ 30 seconds remaining!');
@@ -936,23 +940,62 @@ function ContractContent() {
                 </div>
             </div>
 
-            {/* Notification Popup */}
-            {showNotification && (
+            {/* Timer Warning Popup */}
+            {showTimeWarning && (
                 <div style={{
                     position: 'fixed',
-                    top: '20px',
-                    right: '20px',
-                    backgroundColor: '#f59e0b',
-                    color: 'white',
-                    padding: '20px 30px',
-                    borderRadius: '12px',
-                    fontSize: '18px',
-                    fontWeight: '700',
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.4)',
-                    zIndex: 9999,
-                    animation: 'slideIn 0.3s ease-out'
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10000,
+                    backdropFilter: 'blur(8px)',
+                    animation: 'fadeIn 0.3s ease-out'
                 }}>
-                    {notificationMessage}
+                    <div style={{
+                        backgroundColor: '#1e293b',
+                        padding: '50px',
+                        borderRadius: '24px',
+                        border: '3px solid #f59e0b',
+                        textAlign: 'center',
+                        boxShadow: '0 0 50px rgba(245, 158, 11, 0.3)',
+                        maxWidth: '500px',
+                        width: '90%',
+                        animation: 'pulseScale 0.5s ease-out infinite alternate'
+                    }}>
+                        <div style={{ fontSize: '72px', marginBottom: '20px' }}>⚠️</div>
+                        <h2 style={{ fontSize: '36px', fontWeight: '800', color: '#f1f5f9', margin: '0 0 16px 0' }}>Time Warning</h2>
+                        <div style={{ fontSize: '28px', fontWeight: '700', color: '#f59e0b', marginBottom: '30px' }}>{timeWarningTitle}</div>
+                        <button
+                            onClick={() => setShowTimeWarning(false)}
+                            style={{
+                                padding: '16px 40px',
+                                backgroundColor: '#f1f5f9',
+                                color: '#1e293b',
+                                border: 'none',
+                                borderRadius: '12px',
+                                fontSize: '20px',
+                                fontWeight: '800',
+                                cursor: 'pointer',
+                                transition: 'transform 0.2s',
+                                boxShadow: '0 4px 12px rgba(255, 255, 255, 0.2)'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        >
+                            Got it!
+                        </button>
+                    </div>
+                    <style>{`
+                        @keyframes pulseScale {
+                            from { transform: scale(1); }
+                            to { transform: scale(1.05); }
+                        }
+                    `}</style>
                 </div>
             )}
 

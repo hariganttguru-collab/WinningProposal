@@ -33,6 +33,11 @@ export default function AdminResults() {
     const [comparisonBid2, setComparisonBid2] = useState<PlayerBid | null>(null);
     const [showComparisonModal, setShowComparisonModal] = useState(false);
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+    const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+    const [compareId1, setCompareId1] = useState<string>('');
+    const [compareId2, setCompareId2] = useState<string>('');
+    const [isRevealing, setIsRevealing] = useState(false);
+    const [revealSuccess, setRevealSuccess] = useState(false);
 
     useEffect(() => {
         if (!user || !currentLobby || !isAdmin(user.id)) {
@@ -167,11 +172,6 @@ export default function AdminResults() {
         checkSubmissions();
     }, [currentLobby]);
 
-    const handleCompare = (player1: PlayerBid, player2: PlayerBid) => {
-        setComparisonBid1(player1);
-        setComparisonBid2(player2);
-        setShowComparisonModal(true);
-    };
 
     const closeComparisonModal = () => {
         setShowComparisonModal(false);
@@ -189,6 +189,16 @@ export default function AdminResults() {
         setSelectedBid(null);
     };
 
+    const handleComparePlayers = () => {
+        const p1 = playerBids.find(b => b.userId === compareId1);
+        const p2 = playerBids.find(b => b.userId === compareId2);
+        if (p1 && p2) {
+            setComparisonBid1(p1);
+            setComparisonBid2(p2);
+            setShowComparisonModal(true);
+        }
+    };
+
     if (!currentLobby) {
         return null;
     }
@@ -203,12 +213,35 @@ export default function AdminResults() {
                     <button onClick={() => navigate('/dashboard')} style={{ padding: '10px 20px', backgroundColor: '#1e293b', color: '#e2e8f0', border: '2px solid #475569', borderRadius: '8px', cursor: 'pointer', marginBottom: '20px', fontSize: '14px', fontWeight: '500' }}>
                         ← Back to Dashboard
                     </button>
-                    <h1 style={{ fontSize: '36px', fontWeight: '700', color: '#f1f5f9', margin: '0 0 10px 0' }}>
-                        Admin Results Dashboard
-                    </h1>
-                    <p style={{ fontSize: '18px', color: '#94a3b8', margin: '0' }}>
-                        Lobby Code: <span style={{ color: '#3b82f6', fontWeight: '600' }}>{currentLobby.code}</span>
-                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                            <h1 style={{ fontSize: '36px', fontWeight: '700', color: '#f1f5f9', margin: '0 0 10px 0' }}>
+                                Admin Results Dashboard
+                            </h1>
+                            <p style={{ fontSize: '18px', color: '#94a3b8', margin: '0' }}>
+                                Lobby Code: <span style={{ color: '#3b82f6', fontWeight: '600' }}>{currentLobby.code}</span>
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={() => setShowFeedbackModal(true)}
+                            style={{
+                                padding: '12px 24px',
+                                backgroundColor: '#3b82f6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontSize: '15px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                            }}
+                        >
+                            <span>💬</span> View Feedback ({currentLobby.simulationData?.feedback?.length || 0})
+                        </button>
+                    </div>
                 </div>
 
                 {/* Timer Display */}
@@ -257,25 +290,58 @@ export default function AdminResults() {
                             <span>🏆 Final Results - All Players Submitted</span>
                             <button
                                 onClick={async () => {
+                                    setIsRevealing(true);
                                     const { error } = await supabase
                                         .from('lobbies')
                                         .update({ status: 'completed' })
                                         .eq('id', currentLobby.id);
-                                    if (error) console.error('Error completing lobby:', error);
+
+                                    setIsRevealing(false);
+                                    if (error) {
+                                        console.error('Error completing lobby:', error);
+                                        alert('Failed to reveal results. Please try again.');
+                                    } else {
+                                        setRevealSuccess(true);
+                                    }
                                 }}
+                                disabled={isRevealing || revealSuccess || currentLobby.status === 'completed'}
+                                className="reveal-button"
                                 style={{
                                     padding: '8px 20px',
-                                    backgroundColor: 'white',
-                                    color: '#10b981',
+                                    backgroundColor: revealSuccess || currentLobby.status === 'completed' ? '#059669' : 'white',
+                                    color: revealSuccess || currentLobby.status === 'completed' ? 'white' : '#10b981',
                                     border: 'none',
                                     borderRadius: '6px',
                                     fontWeight: '700',
-                                    cursor: 'pointer',
-                                    fontSize: '14px'
+                                    cursor: (isRevealing || revealSuccess || currentLobby.status === 'completed') ? 'not-allowed' : 'pointer',
+                                    fontSize: '14px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.1s ease',
+                                    boxShadow: isRevealing ? 'inset 0 2px 4px rgba(0,0,0,0.2)' : '0 4px 6px rgba(0,0,0,0.1)',
+                                    transform: isRevealing ? 'scale(0.98)' : 'scale(1)'
                                 }}
                             >
-                                Reveal Results to Players
+                                {isRevealing ? (
+                                    <>
+                                        <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span> Processing...
+                                    </>
+                                ) : (revealSuccess || currentLobby.status === 'completed') ? (
+                                    <>✅ Results Revealed</>
+                                ) : (
+                                    <>Reveal Results to Players</>
+                                )}
                             </button>
+                            <style>{`
+                                @keyframes spin {
+                                    from { transform: rotate(0deg); }
+                                    to { transform: rotate(360deg); }
+                                }
+                                .reveal-button:active {
+                                    transform: scale(0.95);
+                                }
+                            `}</style>
                         </div>
                         <div style={{ padding: '30px' }}>
                             <div style={{ backgroundColor: '#0f172a', borderRadius: '12px', overflow: 'hidden', border: '1px solid #334155' }}>
@@ -292,7 +358,7 @@ export default function AdminResults() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {playerBids.map((bid, index) => (
+                                        {playerBids.map((bid) => (
                                             <tr key={bid.userId} style={{ backgroundColor: bid.rank === 1 && !bid.isDisqualified ? '#065f46' : bid.isDisqualified ? '#7f1d1d' : '#0f172a' }}>
                                                 <td style={{ padding: '12px 20px', borderBottom: '1px solid #334155', color: bid.isDisqualified ? '#fecaca' : bid.rank === 1 ? '#6ee7b7' : '#e2e8f0', fontWeight: '700', fontSize: '16px' }}>
                                                     {bid.isDisqualified ? 'DQ' : (bid.rank === 1 ? '🥇' : bid.rank === 2 ? '🥈' : bid.rank === 3 ? '🥉' : `#${bid.rank}`)}
@@ -323,11 +389,6 @@ export default function AdminResults() {
                                                         <button onClick={() => handleViewStrategy(bid)} style={{ padding: '6px 12px', fontSize: '12px', backgroundColor: '#8b5cf6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>
                                                             View Strategy
                                                         </button>
-                                                        {index < playerBids.length - 1 && (
-                                                            <button onClick={() => handleCompare(bid, playerBids[index + 1])} style={{ padding: '6px 12px', fontSize: '12px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>
-                                                                Compare vs #{index + 2}
-                                                            </button>
-                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -339,43 +400,67 @@ export default function AdminResults() {
                     </div>
                 )}
 
-                {/* Player Feedback Section */}
-
-                <div style={{ backgroundColor: '#1e293b', borderRadius: '12px', padding: '30px', border: '1px solid #334155', marginBottom: '30px' }}>
-                    <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#f1f5f9', margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span>💬</span> Player Feedback ({currentLobby.simulationData?.feedback?.length || 0})
-                    </h3>
-
-                    {!currentLobby.simulationData?.feedback || currentLobby.simulationData.feedback.length === 0 ? (
-                        <div style={{ padding: '30px', backgroundColor: '#0f172a', borderRadius: '8px', border: '1px solid #334155', textAlign: 'center', color: '#94a3b8' }}>
-                            No feedback received yet.
-                        </div>
-                    ) : (
-                        <div style={{ display: 'grid', gap: '12px', maxHeight: '400px', overflowY: 'auto', paddingRight: '5px' }}>
-                            {[...currentLobby.simulationData.feedback].reverse().map((text: string, idx: number) => (
-                                <div
-                                    key={idx}
-                                    style={{
-                                        backgroundColor: '#0f172a',
-                                        padding: '16px 20px',
-                                        borderRadius: '8px',
-                                        border: '1px solid #334155',
-                                        color: '#e2e8f0',
-                                        fontSize: '15px',
-                                        lineHeight: '1.5',
-                                        position: 'relative',
-                                        borderLeft: '4px solid #3b82f6'
-                                    }}
+                {/* Custom Comparison Section */}
+                {playerBids.length >= 2 && (
+                    <div style={{ backgroundColor: '#1e293b', borderRadius: '12px', padding: '30px', border: '1px solid #334155', marginBottom: '30px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)' }}>
+                        <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#f1f5f9', margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span>📊</span> Custom Comparison
+                        </h3>
+                        <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '20px' }}>Select any two players to compare their bidding strategies side-by-side.</p>
+                        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                            <div style={{ flex: '1', minWidth: '200px' }}>
+                                <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Player 1</label>
+                                <select
+                                    value={compareId1}
+                                    onChange={(e) => setCompareId1(e.target.value)}
+                                    style={{ width: '100%', padding: '12px 16px', backgroundColor: '#0f172a', color: '#f1f5f9', border: '1px solid #334155', borderRadius: '8px', cursor: 'pointer', outline: 'none', transition: 'border-color 0.2s' }}
                                 >
-                                    {text}
-                                    <div style={{ fontSize: '10px', color: '#64748b', marginTop: '10px', textAlign: 'right' }}>
-                                        Anonymous User
-                                    </div>
-                                </div>
-                            ))}
+                                    <option value="">Choose a player...</option>
+                                    {playerBids.map(bid => (
+                                        <option key={bid.userId} value={bid.userId} disabled={bid.userId === compareId2}>
+                                            {bid.username} (#{bid.isDisqualified ? 'DQ' : bid.rank})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div style={{ fontSize: '20px', color: '#475569', fontWeight: '700', paddingBottom: '12px' }}>VS</div>
+                            <div style={{ flex: '1', minWidth: '200px' }}>
+                                <label style={{ display: 'block', color: '#94a3b8', fontSize: '13px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Player 2</label>
+                                <select
+                                    value={compareId2}
+                                    onChange={(e) => setCompareId2(e.target.value)}
+                                    style={{ width: '100%', padding: '12px 16px', backgroundColor: '#0f172a', color: '#f1f5f9', border: '1px solid #334155', borderRadius: '8px', cursor: 'pointer', outline: 'none', transition: 'border-color 0.2s' }}
+                                >
+                                    <option value="">Choose a player...</option>
+                                    {playerBids.map(bid => (
+                                        <option key={bid.userId} value={bid.userId} disabled={bid.userId === compareId1}>
+                                            {bid.username} (#{bid.isDisqualified ? 'DQ' : bid.rank})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button
+                                onClick={handleComparePlayers}
+                                disabled={!compareId1 || !compareId2}
+                                style={{
+                                    padding: '12px 30px',
+                                    backgroundColor: compareId1 && compareId2 ? '#3b82f6' : '#1e293b',
+                                    color: compareId1 && compareId2 ? 'white' : '#475569',
+                                    border: compareId1 && compareId2 ? 'none' : '1px solid #334155',
+                                    borderRadius: '8px',
+                                    fontSize: '15px',
+                                    fontWeight: '700',
+                                    cursor: compareId1 && compareId2 ? 'pointer' : 'not-allowed',
+                                    transition: 'all 0.2s ease',
+                                    minWidth: '150px'
+                                }}
+                            >
+                                Compare
+                            </button>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
+
 
                 {!allSubmitted && submittedCount > 0 && (
 
@@ -1105,6 +1190,95 @@ export default function AdminResults() {
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Feedback Modal */}
+            {showFeedbackModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                    padding: '20px'
+                }}>
+                    <div style={{
+                        backgroundColor: '#1e293b',
+                        borderRadius: '16px',
+                        maxWidth: '600px',
+                        width: '100%',
+                        maxHeight: '80vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        border: '1px solid #334155',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+                        position: 'relative'
+                    }}>
+                        <div style={{ padding: '24px', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span>💬</span> Player Feedback ({currentLobby.simulationData?.feedback?.length || 0})
+                            </h3>
+                            <button
+                                onClick={() => setShowFeedbackModal(false)}
+                                style={{ backgroundColor: 'transparent', color: '#94a3b8', border: 'none', fontSize: '24px', cursor: 'pointer' }}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div style={{ padding: '24px', overflowY: 'auto' }}>
+                            {!currentLobby.simulationData?.feedback || currentLobby.simulationData.feedback.length === 0 ? (
+                                <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #334155' }}>
+                                    No feedback received from players yet.
+                                </div>
+                            ) : (
+                                <div style={{ display: 'grid', gap: '16px' }}>
+                                    {[...currentLobby.simulationData.feedback].reverse().map((item: any, idx: number) => {
+                                        const isOldFormat = typeof item === 'string';
+                                        const text = isOldFormat ? item : item.text;
+                                        const username = isOldFormat ? 'Anonymous Player' : item.username;
+                                        const timeStr = isOldFormat ? '' : new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                                        return (
+                                            <div
+                                                key={idx}
+                                                style={{
+                                                    backgroundColor: '#0f172a',
+                                                    padding: '20px',
+                                                    borderRadius: '12px',
+                                                    border: '1px solid #334155',
+                                                    color: '#e2e8f0',
+                                                    fontSize: '15px',
+                                                    lineHeight: '1.6',
+                                                    borderLeft: '4px solid #3b82f6'
+                                                }}
+                                            >
+                                                {text}
+                                                <div style={{ fontSize: '13px', color: '#64748b', marginTop: '12px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center' }}>
+                                                    <span style={{ color: '#60a5fa', fontWeight: '600', fontStyle: 'normal' }}>— {username}</span>
+                                                    {timeStr && <span>({timeStr})</span>}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ padding: '20px', borderTop: '1px solid #334155', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                                onClick={() => setShowFeedbackModal(false)}
+                                style={{ padding: '10px 24px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}
+                            >
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>
