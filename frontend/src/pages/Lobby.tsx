@@ -8,7 +8,7 @@ export default function Lobby() {
     const { user } = useAuth();
     const { currentLobby, leaveLobby, startGame, isAdmin } = useLobby();
     const [countdown, setCountdown] = useState<number | null>(null);
-    const [timerMinutes, setTimerMinutes] = useState<number>(10);
+    const [timerMinutes, setTimerMinutes] = useState<number>(30);
 
     const isLobbyAdmin = user ? isAdmin(user.id) : false;
     const players = currentLobby?.players || [];
